@@ -189,3 +189,8 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
     plt.subplots_adjust(wspace=space, hspace=space)
     # plt.savefig(os.path.join(fig_dir, f"gabor_kernels.pdf"), bbox_inches="tight")  # , additional_artists=[lgd])
     return fig, axes
+
+def plot_dog_filters():
+
+    # print(f"C: {channel}; sigma_c: {float(sigma):.1f}; r_sigma: {sig_ratio:.3f}; [{np.amin(dog):.5f}, {np.amax(dog):.5f}], Sum: {np.sum(dog):.5}", end='')
+    pass
