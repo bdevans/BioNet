@@ -109,6 +109,7 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
     
     if verbose > 1:
         print(nrows, ncols)
+
     width = 24
 
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, sharex='row', sharey='row', 
@@ -143,22 +144,21 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
                         if i // ncols == 0:  # On the first row
                             # simplify(th*np.pi/n_thetas)
                             if th == 0:
-                                title = r"$\theta = 0$"
+                                title = "$\\theta = 0$"
                             else:
-                                title = r"$\theta = \frac{{{}}}{{{}}}\pi$".format(th, n_thetas)
+                                title = f"$\\theta = \\frac{{{th}}}{{{n_thetas}}}\\pi$"
                             axes[row, col].set_title(title, fontsize=fontsize)
 
                         if i % ncols == 0:  # At the first column
                             # axes[row, col].set_ylabel(r"$\psi = {:.3}\pi, \gamma = {}$".format(psi/np.pi, gamma))  #lambd, sigma))
                             if ps == 0:
-                                # ylabel = r"$\psi = 0, \gamma = {}$".format(gamma)
-                                ylabel = "$\psi = 0, \gamma = {}$\n$\lambda = {:.2f}, \sigma = {:.0f}, b = {:.1f}$".format(gamma, lambd, float(sigma), bw)
+                                ylabel = (f"$\psi = 0, \enspace\gamma = {gamma}$\n"
+                                          f"$b = {bw:.1f}, \lambda = {lambd:.1f}, \sigma = {float(sigma):.0f}$")
                             else:
-                                # ylabel = r"$\psi = \frac{{{}}}{{{}}}\pi, \gamma = {}$".format(ps, n_psis, gamma)
-                                ylabel = (r"$\psi = \frac{{{}}}{{{}}}\pi, \gamma = {}$" 
-                                          "\n" 
-                                          r"$\lambda = {:.2f}, \sigma = {:.0f}, b = {:.1f}$"
-                                          .format(ps, n_psis, gamma, lambd, float(sigma), bw))
+                                # {:#.2g}  2 s.f. with trailing zeros
+                                ylabel = (f"$\psi = \\frac{{{ps}}}{{{n_psis}}}\pi, \enspace\gamma = {gamma}$\n" 
+                                          f"$b = {bw:.1f}, \lambda = {lambd:.1f}, \sigma = {float(sigma):.0f}$")
+
                             axes[row, col].set_ylabel(ylabel, fontsize=fontsize)
 
                         if image is not None:
@@ -176,8 +176,8 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
                             axes[row+1, col].set_xticks([])
                             axes[row+1, col].set_yticks([])
 
-                            if i % ncols == 0:
-                                axes[row+1, col].set_ylabel(r"$\lambda = {:.2f}, \sigma = {:.0f}, b = {:.1f}$".format(lambd, float(sigma), bw), fontsize=fontsize)
+                            # if i % ncols == 0:
+                            #     axes[row+1, col].set_ylabel(r"$\lambda = {:.2f}, \sigma = {:.0f}, b = {:.1f}$".format(lambd, float(sigma), bw), fontsize=fontsize)
                             
                         # if col + 1 == ncols:
                         #     ax_r = axes[row, col].twinx()
