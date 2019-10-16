@@ -101,6 +101,11 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
     ncols = n_thetas
     # nrows = int(np.ceil(n_sigmas * n_bs * n_gammas * n_psis * n_thetas / ncols))  #  * n_lambdas * n_sizes
     nrows = n_sigmas * n_bs * n_gammas * n_psis
+    wide_format = False
+    if n_psis == 2:
+        wide_format = True
+        ncols *= n_psis
+        nrows = int(nrows / n_psis)
     if verbose:
         print(f"Total Gabor filters: {ncols*nrows} "
               f"({n_sigmas} sigmas X {n_bs} bs X {n_gammas} gammas X {n_psis} psis X {n_thetas} thetas)")
@@ -141,25 +146,42 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
                         axes[row, col].set_xticks([])
                         axes[row, col].set_yticks([])
 
-                        if i // ncols == 0:  # On the first row
-                            # simplify(th*np.pi/n_thetas)
-                            if th == 0:
-                                title = "$\\theta = 0$"
-                            else:
-                                title = f"$\\theta = \\frac{{{th}}}{{{n_thetas}}}\\pi$"
-                            axes[row, col].set_title(title, fontsize=fontsize)
+                        if wide_format:
+                            if i // ncols == 0:  # On the first row
+                                if th == 0:
+                                    theta_str = "\\theta = 0"
+                                else:
+                                    theta_str = f"\\theta = \\frac{{{th}}}{{{n_thetas}}}\\pi"
+                                if ps == 0:
+                                    psi_str = "\\psi = 0"
+                                else:
+                                    psi_str = f"\psi = \\frac{{{ps}}}{{{n_psis}}}\pi"
+                                title = f"${theta_str}, \enspace{psi_str}$"
+                                axes[row, col].set_title(title, fontsize=fontsize)
 
-                        if i % ncols == 0:  # At the first column
-                            # axes[row, col].set_ylabel(r"$\psi = {:.3}\pi, \gamma = {}$".format(psi/np.pi, gamma))  #lambd, sigma))
-                            if ps == 0:
-                                ylabel = (f"$\psi = 0, \enspace\gamma = {gamma}$\n"
-                                          f"$b = {bw:.1f}, \lambda = {lambd:.1f}, \sigma = {float(sigma):.0f}$")
-                            else:
-                                # {:#.2g}  2 s.f. with trailing zeros
-                                ylabel = (f"$\psi = \\frac{{{ps}}}{{{n_psis}}}\pi, \enspace\gamma = {gamma}$\n" 
-                                          f"$b = {bw:.1f}, \lambda = {lambd:.1f}, \sigma = {float(sigma):.0f}$")
+                            if i % ncols == 0:  # At the first column
+                                ylabel = (f"$\gamma = {gamma}, \enspace b = {bw:.1f}$\n"
+                                          f"$\lambda = {lambd:.1f}, \sigma = {float(sigma):.0f}$")
+                                axes[row, col].set_ylabel(ylabel, fontsize=fontsize)
+                        else:
+                            if i // ncols == 0:  # On the first row
+                                # simplify(th*np.pi/n_thetas)
+                                if th == 0:
+                                    title = "$\\theta = 0$"
+                                else:
+                                    title = f"$\\theta = \\frac{{{th}}}{{{n_thetas}}}\\pi$"
+                                axes[row, col].set_title(title, fontsize=fontsize)
 
-                            axes[row, col].set_ylabel(ylabel, fontsize=fontsize)
+                            if i % ncols == 0:  # At the first column
+                                # axes[row, col].set_ylabel(r"$\psi = {:.3}\pi, \gamma = {}$".format(psi/np.pi, gamma))  #lambd, sigma))
+                                if ps == 0:
+                                    ylabel = (f"$\psi = 0, \enspace\gamma = {gamma}$\n"
+                                              f"$b = {bw:.1f}, \lambda = {lambd:.1f}, \sigma = {float(sigma):.0f}$")
+                                else:
+                                    # {:#.2g}  2 s.f. with trailing zeros
+                                    ylabel = (f"$\psi = \\frac{{{ps}}}{{{n_psis}}}\pi, \enspace\gamma = {gamma}$\n" 
+                                              f"$b = {bw:.1f}, \lambda = {lambd:.1f}, \sigma = {float(sigma):.0f}$")
+                                axes[row, col].set_ylabel(ylabel, fontsize=fontsize)
 
                         if image is not None:
                             gf = K.expand_dims(gf, -1)
