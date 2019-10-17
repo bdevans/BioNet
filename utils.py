@@ -161,7 +161,7 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
 
                             if i % ncols == 0:  # At the first column
                                 ylabel = (f"$\gamma = {gamma}, \enspace b = {bw:.1f}$\n"
-                                          f"$\lambda = {lambd:.1f}, \sigma = {float(sigma):.0f}$")
+                                          f"$\lambda = {lambd:.1f}, \enspace \sigma = {float(sigma):.0f}$")
                                 axes[row, col].set_ylabel(ylabel, fontsize=fontsize)
                         else:
                             if i // ncols == 0:  # On the first row
