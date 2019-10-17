@@ -2,6 +2,7 @@ import os
 from pprint import pprint
 
 import numpy as np
+from scipy import signal
 import cv2
 from matplotlib import pyplot as plt
 import tensorflow as tf
@@ -23,7 +24,7 @@ def calc_lambda(sigma, bandwidth):
     c = np.sqrt(np.log(2)/2)
     return sigma * np.pi / c  * (p - 1) / (p + 1)
 
-def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
+def plot_gabor_filters(params, image=None, use_gpu=True, fontsize=20, space=0.15, verbose=0):
 
     # ksize is the size of the Gabor kernel. If ksize = (a, b), we then have a Gabor kernel of size a x b pixels. As with many other convolution kernels, ksize is preferably odd and the kernel is a square (just for the sake of uniformity).
     # sigma is the standard deviation of the Gaussian function used in the Gabor filter.
@@ -85,11 +86,13 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
             if image.shape[-1] == 3:
                 # TODO: Generalise for channels first/RGB
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                image = K.expand_dims(image, 0)  # For multiple images
-                image = K.expand_dims(image, -1)  # For channels
 
         if isinstance(image, np.ndarray):
             image = image.astype('float32')
+
+        if use_gpu:
+            image = K.expand_dims(image, 0)  # For multiple images
+            image = K.expand_dims(image, -1)  # For channels
 
         if verbose:
             if verbose > 1:
@@ -187,12 +190,16 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
                                 axes[row, col].set_ylabel(ylabel, fontsize=fontsize)
 
                         if image is not None:
-                            gf = K.expand_dims(gf, -1)
-                            gf = K.expand_dims(gf, -1)
-                            # https://stackoverflow.com/questions/34619177/what-does-tf-nn-conv2d-do-in-tensorflow
-                            # K.conv2d(image.img_to_array(img), gf)
-                            fimg = K.conv2d(image, gf, padding='same')
-                            fimg = fimg.numpy().squeeze()
+                            if use_gpu:
+                                gf = K.expand_dims(gf, -1)
+                                gf = K.expand_dims(gf, -1)
+                                # https://stackoverflow.com/questions/34619177/what-does-tf-nn-conv2d-do-in-tensorflow
+                                # K.conv2d(image.img_to_array(img), gf)
+                                fimg = K.conv2d(image, gf, padding='same')
+                                fimg = fimg.numpy().squeeze()
+                            else:
+                                fimg = signal.convolve2d(image, gf, mode='same')
+                                # fimg = cv2.filter2D(image, -1, gf)  # Alternative
 
                             # fimg = np.sign(fimg) * np.log(np.abs(fimg))  # Logarithmically compress convolved values
                             # fimg /= np.amax(np.abs(fimg))  # Scale to [-1, 1]
