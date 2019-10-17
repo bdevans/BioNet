@@ -109,6 +109,9 @@ def plot_gabor_filters(params, image=None, fontsize=20, space=0.15, verbose=0):
     if verbose:
         print(f"Total Gabor filters: {ncols*nrows} "
               f"({n_sigmas} sigmas X {n_bs} bs X {n_gammas} gammas X {n_psis} psis X {n_thetas} thetas)")
+        lambda_min = calc_lambda(np.amin(sigmas), np.amin(bs))
+        lambda_max = calc_lambda(np.amax(sigmas), np.amax(bs))
+        print(f"Wavelength range: [{lambda_min:#.3g}, {lambda_max:#.3g}] pixels")
     if image is not None:
         nrows *= 2
     
