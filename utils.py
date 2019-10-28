@@ -7,6 +7,8 @@ import cv2
 from matplotlib import pyplot as plt
 import tensorflow as tf
 from tensorflow.keras import backend as K
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Lambda, Input
 
 
 def calc_bandwidth(lambd, sigma):
@@ -226,3 +228,83 @@ def plot_dog_filters():
 
     # print(f"C: {channel}; sigma_c: {float(sigma):.1f}; r_sigma: {sig_ratio:.3f}; [{np.amin(dog):.5f}, {np.amax(dog):.5f}], Sum: {np.sum(dog):.5}", end='')
     pass
+
+
+def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None):
+
+    # n_kernels = len(sigmas) * len(thetas) * len(lambdas) * len(gammas) * len(psis)
+    n_kernels = len(bs) * len(sigmas) * len(thetas) * len(gammas) * len(psis)
+    gabors = []
+    for sigma in sigmas:
+        for theta in thetas:
+            # for lambd in lambdas:
+            for b in bs:
+                lambd = calc_lambda(sigma, b)
+                for gamma in gammas:
+                    for psi in psis:
+                        params = {'ksize': ksize, 'sigma': sigma,
+                                  'theta': theta, 'lambd': lambd,
+                                  'gamma': gamma, 'psi': psi}
+                        gf = cv2.getGaborKernel(**params, ktype=cv2.CV_32F)
+                        gf = K.expand_dims(gf, -1)
+                        gabors.append(gf)
+    assert len(gabors) == n_kernels
+    print(f"Created {n_kernels} kernels.")
+    return K.stack(gabors, axis=-1)
+
+
+def convolve_tensor(x, kernel_tensor=None):
+    '''
+    conv2d
+    input tensor: [batch, in_height, in_width, in_channels]
+    kernel tensor: [filter_height, filter_width, in_channels, out_channels]
+    '''
+    # x = tf.image.rgb_to_grayscale(x)
+    # print(f"Input shape: {x.shape}")
+    # print(f"Kernel tensor shape: {kernel_tensor.shape}")  # TODO: Should this be (127, 127, 3, n)?
+    return K.conv2d(x, kernel_tensor, padding='same')
+
+
+def substitute_layer(model, params, filter_type='gabor', replace_layer=1):
+
+    assert isinstance(replace_layer, int)
+    assert 0 < replace_layer < len(model.layers)
+
+    # Parse parameters
+    assert 'bs' in params
+    if 'sigmas' not in params:
+        assert 'lambdas' in params
+    #     params['sigmas'] = [utils.calc_sigma(lambd, b) for lambd in params['lambdas']
+    #                         for b in params['bs']]
+    
+    # if 'sigmas' in params and 'lambdas' not in params:
+    #     assert 'bs' in params
+    #     params['lambdas'] = [utils.calc_lambda(sigma, b) for sigma in params['sigmas']
+    #                          for b in params['bs']]
+
+    pprint(params)
+
+    # Generate Gabor filters
+    # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
+    tensor = get_gabor_tensor(**params)
+
+    # Get input layer
+    inp = Input(shape=model.layers[0].input_shape[0][1:])
+    # inp = model.layers[0]
+    print(f"Input shape: {model.layers[0].input_shape[0][1:]}")
+    for ind, layer in enumerate(model.layers):
+        if ind == 0:
+            x = inp
+        elif ind == replace_layer:  # Replace convolutional layer
+            assert isinstance(layer, tf.keras.layers.Conv2D)
+            x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
+                       name=f"{filter_type}_conv")(x)
+        elif ind == replace_layer + 1:  # Replace next layer
+            # Check input_shape matches output_shape?
+            # x = Conv2D(**layers[layer].get_config())(x)
+            x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
+                                          'config': layer.get_config()})(x)
+        else:
+            x = layer(x)
+    
+    return Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
