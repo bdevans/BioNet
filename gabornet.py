@@ -111,8 +111,8 @@ def convolve_tensor(x, kernel_tensor=None):
     kernel tensor: [filter_height, filter_width, in_channels, out_channels]
     '''
     # x = tf.image.rgb_to_grayscale(x)
-    print(x.shape)
-    print(kernel_tensor.shape)
+    # print(x.shape)
+    # print(kernel_tensor.shape)
     return K.conv2d(x, kernel_tensor, padding='same')
 
 
