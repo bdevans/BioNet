@@ -265,7 +265,7 @@ def convolve_tensor(x, kernel_tensor=None):
     return K.conv2d(x, kernel_tensor, padding='same')
 
 
-def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour_input=True):
+def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour_input='rgb'):
 
     assert isinstance(replace_layer, int)
     assert 0 < replace_layer < len(model.layers)
@@ -289,35 +289,24 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
     # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
     tensor = get_gabor_tensor(**params)
 
-
-
-        # original_shape = model.layers[0].input_shape[0][1:]
-        # print(original_shape)
-        # print(type(original_shape), flush=True)
-        # shape = (*original_shape[:-1], 1)
-        # print(shape, flush=True)
-        # inp = Input(shape=shape, name=model.layers[0].name)
-    # inp = model.layers[0]
-    # print(f"Input shape: {model.layers[0].input_shape[0][1:]}")
-
     for ind, layer in enumerate(model.layers):
-        if ind == 0:
-            # Get input layer
-            if colour_input:
+        if ind == 0:  # Get input layer
+            params = layer.get_config()
+            print(f"Original input shape: {params['shape']}")
+            if colour_input == 'rgb':
                 # inp = Input(shape=model.layers[0].input_shape[0][1:])
-                params = layer.get_config()
                 params['shape'] = params['batch_input_shape'][1:]
-                del params['batch_input_shape']
-                inp = Input(**params)
-            else:
-                params = layer.get_config()
+            elif colour_input == 'rgba':
+                print(f"Warning! colour_input: {colour_input} not yet implemented!")
+                return
+            elif colour_input == "grayscale":
                 original_shape = params['batch_input_shape'][1:]
                 params['shape'] = (*original_shape[:-1], 1)
-                # params['shape'] = params['batch_input_shape'][1:]
+            else:
+                raise UserError(f"Unknown colour_input: {colour_input}")
                 del params['batch_input_shape']
                 inp = Input(**params)
             x = inp
-            # print(inp.get_config())
             print(f"Input shape: {params['shape']}")
         elif ind == replace_layer:  # Replace convolutional layer
             assert isinstance(layer, tf.keras.layers.Conv2D)
