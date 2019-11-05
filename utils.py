@@ -321,3 +321,26 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
             x = layer(x)
     
     return Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
+
+
+def substitute_output(model, n_classes=16):
+
+    new_model = []
+    n_layers = len(model.layers)
+
+    for ind, layer in enumerate(model.layers):
+        if ind == 0:
+            params = layer.get_config()
+            params['shape'] = params['batch_input_shape'][1:]
+            del params['batch_input_shape']
+            inp = Input(**params)
+            x = inp
+        elif 0 < ind < n_layers-1:
+            x = layer(x)
+        else:  # Final layer
+            params = layer.get_config()
+            params['units'] = n_classes
+            x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
+                                             'config': params})(x)
+
+    return Model(inputs=inp, outputs=x, name=f"{model.name}_{n_classes}class")
