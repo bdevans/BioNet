@@ -253,6 +253,7 @@ def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None):
     return K.stack(gabors, axis=-1)
 
 
+@tf.function
 def convolve_tensor(x, kernel_tensor=None):
     '''
     conv2d
