@@ -292,23 +292,23 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
 
     for ind, layer in enumerate(model.layers):
         if ind == 0:  # Get input layer
-            params = layer.get_config()
-            print(f"Original input shape: {params['shape']}")
+            config = layer.get_config()
+            print(f"Original (batch) input shape: {config['batch_input_shape']}")
             if colour_input == 'rgb':
                 # inp = Input(shape=model.layers[0].input_shape[0][1:])
-                params['shape'] = params['batch_input_shape'][1:]
+                config['shape'] = config['batch_input_shape'][1:]
             elif colour_input == 'rgba':
                 print(f"Warning! colour_input: {colour_input} not yet implemented!")
                 return
             elif colour_input == "grayscale":
-                original_shape = params['batch_input_shape'][1:]
-                params['shape'] = (*original_shape[:-1], 1)
+                original_shape = config['batch_input_shape'][1:]
+                config['shape'] = (*original_shape[:-1], 1)
             else:
                 raise UserError(f"Unknown colour_input: {colour_input}")
-                del params['batch_input_shape']
-                inp = Input(**params)
+            del config['batch_input_shape']
+            inp = Input(**config)
             x = inp
-            print(f"Input shape: {params['shape']}")
+            print(f"Input shape: {config['shape']}")
         elif ind == replace_layer:  # Replace convolutional layer
             assert isinstance(layer, tf.keras.layers.Conv2D)
             x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
