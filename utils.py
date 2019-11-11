@@ -8,7 +8,9 @@ from matplotlib import pyplot as plt
 import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Lambda, Input
+from tensorflow.keras.layers import Lambda, Input, Conv2D  # , Dense
+from tensorflow.keras.initializers import Initializer
+from tensorflow.python.framework import dtypes
 
 
 def calc_bandwidth(lambd, sigma):
@@ -266,7 +268,7 @@ def convolve_tensor(x, kernel_tensor=None):
     return K.conv2d(x, kernel_tensor, padding='same')
 
 
-def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour_input='rgb'):
+def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour_input='rgb', test=False):
 
     assert isinstance(replace_layer, int)
     assert 0 < replace_layer < len(model.layers)
@@ -310,6 +312,21 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
             x = inp
             print(f"Input shape: {config['shape']}")
         elif ind == replace_layer:  # Replace convolutional layer
+            if test:
+                n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
+                                              * len(params['gammas']) * len(params['psis'])
+                
+                # When using this layer as the first layer in a model, provide the keyword argument 
+                # input_shape (tuple of integers, does not include the batch axis), 
+                # e.g. input_shape=(128, 128, 3) for 128x128 RGB pictures in data_format="channels_last".
+
+                # Input shape: (batch, rows, cols, channels)
+                # Output shape: (batch, new_rows, new_cols, filters)
+                x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True,
+                           kernel_initializer=GaborInitializer(params))(x)
+                # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
+
+            else:
             assert isinstance(layer, tf.keras.layers.Conv2D)
             x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
                        name=f"{filter_type}_conv")(x)
@@ -321,6 +338,12 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
         else:
             x = layer(x)
     
+    if test:
+        # Freeze weights of kernels
+        model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
+        model.layers[replace_layer].trainable = False
+        return model
+
     return Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
 
 
@@ -345,3 +368,50 @@ def substitute_output(model, n_classes=16):
                                              'config': params})(x)
 
     return Model(inputs=inp, outputs=x, name=f"{model.name}_{n_classes}class")
+
+
+# def add_top(model, n_fc_layers=3, n_classes=16):
+
+#     new_model = []
+#     for ind, layer in enumerate(model.layers):
+#         new_model.append(layer)
+    
+#     for ind in range(n_fc_layers):
+#         if ind < n_fc_layers-1:
+#             name = f"fc{ind+1}"
+#         else:
+#             name = "predictions"
+#         new_model.append(Dense())
+
+
+class GaborInitializer(Initializer):
+    """Gabor Initializer class."""
+
+    def __init__(self, params, dtype=dtypes.float32):
+        self.dtype = dtypes.as_dtype(dtype)
+        self.params = params
+        # self.n_kernels = self.calc_n_kernels(params)
+    
+    def calc_n_kernels(params):
+        return len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
+                                 * len(params['gammas']) * len(params['psis'])
+
+    def __call__(self, shape, dtype=None, partition_info=None):
+        """Returns a tensor object initialized as specified by the initializer.
+        Args:
+            shape: Shape of the tensor.
+            dtype: Optional dtype of the tensor. If not provided use the initializer
+            dtype.
+            partition_info: Optional information about the possible partitioning of a
+            tensor.
+        """
+        # return get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None)
+        return get_gabor_tensor(**self.params)
+
+    def get_config(self):
+        """Returns the configuration of the initializer as a JSON-serializable dict.
+        Returns:
+        A JSON-serializable Python dict.
+        """
+        # return {"dtype": self.dtype.name ...}
+        return self.params
