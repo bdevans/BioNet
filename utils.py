@@ -248,11 +248,11 @@ def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None):
                                   'theta': theta, 'lambd': lambd,
                                   'gamma': gamma, 'psi': psi}
                         gf = cv2.getGaborKernel(**params, ktype=cv2.CV_32F)
-                        gf = K.expand_dims(gf, -1)
+                        gf = K.expand_dims(gf, -1)  # TODO: Check this is necessary (63, 63, 1, 120)
                         gabors.append(gf)
     assert len(gabors) == n_kernels
     print(f"Created {n_kernels} kernels.")
-    return K.stack(gabors, axis=-1)
+    return K.stack(gabors, axis=-1)  # (ksize[0], ksize[1], 1, n_kernels)
 
 
 @tf.function
@@ -265,6 +265,9 @@ def convolve_tensor(x, kernel_tensor=None):
     # x = tf.image.rgb_to_grayscale(x)
     # print(f"Input shape: {x.shape}")
     # print(f"Kernel tensor shape: {kernel_tensor.shape}")  # TODO: Should this be (127, 127, 3, n)?
+
+    # NOTE: This function does not apply bias or pass through an activation function
+    # TODO: Do I need to add bias and pass through an activation function before returning? Maybe...
     return K.conv2d(x, kernel_tensor, padding='same')
 
 
@@ -327,17 +330,17 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
                 # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
 
             else:
-            assert isinstance(layer, tf.keras.layers.Conv2D)
-            x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
-                       name=f"{filter_type}_conv")(x)
+                assert isinstance(layer, tf.keras.layers.Conv2D)
+                x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
+                        name=f"{filter_type}_conv")(x)
         elif ind == replace_layer + 1:  # Replace next layer
             # Check input_shape matches output_shape?
             # x = Conv2D(**layers[layer].get_config())(x)
             x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
-                                          'config': layer.get_config()})(x)
+                                             'config': layer.get_config()})(x)
         else:
             x = layer(x)
-    
+
     if test:
         # Freeze weights of kernels
         model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
