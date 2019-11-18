@@ -28,7 +28,7 @@ def calc_lambda(sigma, bandwidth):
     c = np.sqrt(np.log(2)/2)
     return sigma * np.pi / c  * (p - 1) / (p + 1)
 
-def plot_gabor_filters(params, image=None, use_gpu=True, fontsize=20, space=0.15, verbose=0):
+def plot_gabor_filters(params, images=None, use_gpu=True, fontsize=20, space=0.15, verbose=0):
 
     # ksize is the size of the Gabor kernel. If ksize = (a, b), we then have a Gabor kernel of size a x b pixels. As with many other convolution kernels, ksize is preferably odd and the kernel is a square (just for the sake of uniformity).
     # sigma is the standard deviation of the Gaussian function used in the Gabor filter.
@@ -83,8 +83,15 @@ def plot_gabor_filters(params, image=None, use_gpu=True, fontsize=20, space=0.15
     if verbose > 1:
         pprint(params)
 
-    if image is not None:
+    if images is not None:
 
+        if not isinstance(images, list):
+            assert isinstance(image, str) or isinstance(image, np.ndarray)
+            images = [images]
+        
+        n_images = len(images)
+
+        for i, image in enumerate(images):
         if isinstance(image, str):  # Assume file path is passed
             image = plt.imread(image)
             if image.shape[-1] == 3:
@@ -103,6 +110,8 @@ def plot_gabor_filters(params, image=None, use_gpu=True, fontsize=20, space=0.15
                 print(f"Image type: {type(image)}")
             print(f"Image shape: {image.shape}; scaling: [{np.amin(image)}, {np.amax(image)}]")
 
+            images[i] = image
+
     # ncols = len(thetas)
     # nrows = int(np.ceil(2*len(sizes)*len(sigmas)*len(thetas)*len(lambdas)*len(psis)/ncols))
     ncols = n_thetas
@@ -119,8 +128,8 @@ def plot_gabor_filters(params, image=None, use_gpu=True, fontsize=20, space=0.15
         lambda_min = calc_lambda(np.amin(sigmas), np.amin(bs))
         lambda_max = calc_lambda(np.amax(sigmas), np.amax(bs))
         print(f"Wavelength range: [{lambda_min:#.3g}, {lambda_max:#.3g}] pixels")
-    if image is not None:
-        nrows *= 2
+    if images is not None:
+        nrows *= (n_images + 1)
     
     if verbose > 1:
         print(nrows, ncols)
@@ -149,8 +158,9 @@ def plot_gabor_filters(params, image=None, use_gpu=True, fontsize=20, space=0.15
                         gf = cv2.getGaborKernel(**p, ktype=cv2.CV_32F)
 
                         row, col = (i // ncols), i % ncols
-                        if image is not None:
-                            row *= 2
+
+                        if images is not None:
+                            row *= (n_images + 1)
 
                         axes[row, col].imshow(gf, cmap='gray', vmin=-1, vmax=1)
                         axes[row, col].set_xticks([])
@@ -193,10 +203,14 @@ def plot_gabor_filters(params, image=None, use_gpu=True, fontsize=20, space=0.15
                                               f"$b = {bw:.1f}, \lambda = {lambd:.1f}, \sigma = {float(sigma):.0f}$")
                                 axes[row, col].set_ylabel(ylabel, fontsize=fontsize)
 
-                        if image is not None:
+                        if images is not None:
+
                             if use_gpu:
                                 gf = K.expand_dims(gf, -1)
                                 gf = K.expand_dims(gf, -1)
+
+                            for ind, image in enumerate(images):
+                                if use_gpu:
                                 # https://stackoverflow.com/questions/34619177/what-does-tf-nn-conv2d-do-in-tensorflow
                                 # K.conv2d(image.img_to_array(img), gf)
                                 fimg = K.conv2d(image, gf, padding='same')
@@ -207,10 +221,10 @@ def plot_gabor_filters(params, image=None, use_gpu=True, fontsize=20, space=0.15
 
                             # fimg = np.sign(fimg) * np.log(np.abs(fimg))  # Logarithmically compress convolved values
                             # fimg /= np.amax(np.abs(fimg))  # Scale to [-1, 1]
-                            axes[row+1, col].imshow(fimg, cmap='gray') #, vmin=-img_scale, vmax=img_scale)
+                                axes[row+1+ind, col].imshow(fimg, cmap='gray') #, vmin=-img_scale, vmax=img_scale)
                             # axes[row+1, col].imshow(fimg[0,:,:,0].eval(), cmap='gray')
-                            axes[row+1, col].set_xticks([])
-                            axes[row+1, col].set_yticks([])
+                                axes[row+1+ind, col].set_xticks([])
+                                axes[row+1+ind, col].set_yticks([])
 
                             # if i % ncols == 0:
                             #     axes[row+1, col].set_ylabel(r"$\lambda = {:.2f}, \sigma = {:.0f}, b = {:.1f}$".format(lambd, float(sigma), bw), fontsize=fontsize)
