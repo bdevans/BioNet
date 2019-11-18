@@ -128,7 +128,7 @@ def plot_gabor_filters(params, image=None, use_gpu=True, fontsize=20, space=0.15
     width = 24
 
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, sharex='row', sharey='row', 
-                             figsize=(width, width*nrows/ncols))
+                             figsize=(width, width*nrows/ncols), squeeze=False)
 
     i = 0
     for sg, sigma in enumerate(sigmas):
