@@ -371,6 +371,10 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
 
 def substitute_output(model, n_classes=16):
 
+    if model.get_layer(index=-1).output_shape[-1] == n_classes:
+        print(f"Model already has the requested number of output classes ({n_classes})!")
+        return model
+
     new_model = []
     n_layers = len(model.layers)
 
