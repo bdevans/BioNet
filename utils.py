@@ -115,24 +115,24 @@ def plot_gabor_filters(params, images=None, use_gpu=True, fontsize=20, space=0.1
         n_images = len(images)
 
         for i, image in enumerate(images):
-        if isinstance(image, str):  # Assume file path is passed
-            image = plt.imread(image)
-            if image.shape[-1] == 3:
-                # TODO: Generalise for channels first/RGB
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            if isinstance(image, str):  # Assume file path is passed
+                image = plt.imread(image)
+                if image.shape[-1] == 3:
+                    # TODO: Generalise for channels first/RGB
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        if isinstance(image, np.ndarray):
-            image = image.astype('float32')
+            if isinstance(image, np.ndarray):
+                image = image.astype('float32')
 
-        if use_gpu:
-            image = K.expand_dims(image, 0)  # For multiple images
-            image = K.expand_dims(image, -1)  # For channels
+            if use_gpu:
+                image = K.expand_dims(image, 0)  # For multiple images
+                image = K.expand_dims(image, -1)  # For channels
 
-        if verbose:
-            if verbose > 1:
-                print(f"Image type: {type(image)}")
-            print(f"Image shape: {image.shape}; scaling: [{np.amin(image)}, {np.amax(image)}]")
-
+            if verbose:
+                if verbose > 1:
+                    print(f"Image type: {type(image)}")
+                print(f"Image shape: {image.shape}; scaling: [{np.amin(image)}, {np.amax(image)}]")
+            
             images[i] = image
 
     # ncols = len(thetas)
@@ -234,23 +234,23 @@ def plot_gabor_filters(params, images=None, use_gpu=True, fontsize=20, space=0.1
 
                             for ind, image in enumerate(images):
                                 if use_gpu:
-                                # https://stackoverflow.com/questions/34619177/what-does-tf-nn-conv2d-do-in-tensorflow
-                                # K.conv2d(image.img_to_array(img), gf)
-                                fimg = K.conv2d(image, gf, padding='same')
-                                fimg = fimg.numpy().squeeze()
-                            else:
-                                fimg = signal.convolve2d(image, gf, mode='same')
-                                # fimg = cv2.filter2D(image, -1, gf)  # Alternative
+                                    # https://stackoverflow.com/questions/34619177/what-does-tf-nn-conv2d-do-in-tensorflow
+                                    # K.conv2d(image.img_to_array(img), gf)
+                                    fimg = K.conv2d(image, gf, padding='same')
+                                    fimg = fimg.numpy().squeeze()
+                                else:
+                                    fimg = signal.convolve2d(image, gf, mode='same')
+                                    # fimg = cv2.filter2D(image, -1, gf)  # Alternative
 
-                            # fimg = np.sign(fimg) * np.log(np.abs(fimg))  # Logarithmically compress convolved values
-                            # fimg /= np.amax(np.abs(fimg))  # Scale to [-1, 1]
+                                # fimg = np.sign(fimg) * np.log(np.abs(fimg))  # Logarithmically compress convolved values
+                                # fimg /= np.amax(np.abs(fimg))  # Scale to [-1, 1]
                                 axes[row+1+ind, col].imshow(fimg, cmap='gray') #, vmin=-img_scale, vmax=img_scale)
-                            # axes[row+1, col].imshow(fimg[0,:,:,0].eval(), cmap='gray')
+                                # axes[row+1, col].imshow(fimg[0,:,:,0].eval(), cmap='gray')
                                 axes[row+1+ind, col].set_xticks([])
                                 axes[row+1+ind, col].set_yticks([])
 
-                            # if i % ncols == 0:
-                            #     axes[row+1, col].set_ylabel(r"$\lambda = {:.2f}, \sigma = {:.0f}, b = {:.1f}$".format(lambd, float(sigma), bw), fontsize=fontsize)
+                                # if i % ncols == 0:
+                                #     axes[row+1, col].set_ylabel(r"$\lambda = {:.2f}, \sigma = {:.0f}, b = {:.1f}$".format(lambd, float(sigma), bw), fontsize=fontsize)
                             
                         # if col + 1 == ncols:
                         #     ax_r = axes[row, col].twinx()
@@ -271,7 +271,7 @@ def plot_dog_filters():
 
 def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None):
     """Create a tensor of Gabor filters for greyscale images.
-
+    
     The sinusoidal wavelength $\lambda$ is constrained by the bandwidth $b$
     and Gaussian spatial scale $\sigma$.
     """
@@ -313,16 +313,17 @@ def convolve_tensor(x, kernel_tensor=None):
     return K.conv2d(x, kernel_tensor, padding='same')
 
 
-def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour_input='rgb', test=False):
+def substitute_layer(model, params, filter_type='gabor', replace_layer=1, 
+                     input_shape=None, colour_input='rgb', use_initializer=False, verbose=0):
 
     assert isinstance(replace_layer, int)
     assert 0 < replace_layer < len(model.layers)
 
     # Parse parameters
     if params is not None:
-    assert 'bs' in params
-    if 'sigmas' not in params:
-        assert 'lambdas' in params
+        assert 'bs' in params
+        if 'sigmas' not in params:
+            assert 'lambdas' in params
 
     #     params['sigmas'] = [utils.calc_sigma(lambd, b) for lambd in params['lambdas']
     #                         for b in params['bs']]
@@ -332,33 +333,39 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
     #     params['lambdas'] = [utils.calc_lambda(sigma, b) for sigma in params['sigmas']
     #                          for b in params['bs']]
 
-    print(f"{filter_type.capitalize()} filter parameters:")
-    pprint(params)
-
-    # Generate Gabor filters
-    # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
-    tensor = get_gabor_tensor(**params)
+    if verbose:
+        print(f"{filter_type.capitalize()} filter parameters:")
+        pprint(params)
 
     for ind, layer in enumerate(model.layers):
+        # print(ind, layer.name)
         if ind == 0:  # Get input layer
             config = layer.get_config()
-            print(f"Original (batch) input shape: {config['batch_input_shape']}")
+            print(f"Replacing input: {config['batch_input_shape']} (batch) -->", end=' ')
             if colour_input == 'rgb':
                 # inp = Input(shape=model.layers[0].input_shape[0][1:])
-                config['shape'] = config['batch_input_shape'][1:]
+                if input_shape:
+                    config['shape'] = input_shape + (3,)
+                else:
+                    config['shape'] = config['batch_input_shape'][1:]
             elif colour_input == 'rgba':
                 print(f"Warning! colour_input: {colour_input} not yet implemented!")
                 return
             elif colour_input == "grayscale":
-                original_shape = config['batch_input_shape'][1:]
-                config['shape'] = (*original_shape[:-1], 1)
+                if input_shape:
+                    config['shape'] = input_shape + (1,)
+                else:
+                    original_shape = config['batch_input_shape'][1:]
+                    config['shape'] = (*original_shape[:-1], 1)
             else:
                 raise UserError(f"Unknown colour_input: {colour_input}")
             del config['batch_input_shape']
             inp = Input(**config)
             x = inp
+            print(f"{config['shape']}")
         elif ind == replace_layer and params is not None:  # Replace convolutional layer
             print(f"Replacing layer {ind}: '{layer.name}' --> '{filter_type}_conv'...")
+            if use_initializer:
                 n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
                                               * len(params['gammas']) * len(params['psis'])
                 
@@ -368,23 +375,32 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
 
                 # Input shape: (batch, rows, cols, channels)
                 # Output shape: (batch, new_rows, new_cols, filters)
-                x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True,
+                x = Conv2D(n_kernels, params['ksize'], padding='same', 
+                           activation='relu', use_bias=True,
+                        #    activation=None, use_bias=False,
+                           name=f"{filter_type}_conv",
                            kernel_initializer=GaborInitializer(params))(x)
                 # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
 
             else:
                 assert isinstance(layer, tf.keras.layers.Conv2D)
+                # Generate Gabor filters
+                # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
+                tensor = get_gabor_tensor(**params)
                 x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
-                        name=f"{filter_type}_conv")(x)
+                           name=f"{filter_type}_conv")(x)
         elif ind == replace_layer + 1 and params is not None:  # Replace next layer
             # Check input_shape matches output_shape?
             # x = Conv2D(**layers[layer].get_config())(x)
             x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
                                              'config': layer.get_config()})(x)
         else:
-            x = layer(x)
+            # x = layer(x)
+            x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
+                                             'config': layer.get_config()})(x)
+        # print(x.shape)
 
-    if test:
+    if use_initializer:
         # Freeze weights of kernels
         model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
         model.layers[replace_layer].trainable = False
