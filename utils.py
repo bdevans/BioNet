@@ -247,6 +247,11 @@ def plot_dog_filters():
 
 
 def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None):
+    """Create a tensor of Gabor filters for greyscale images.
+
+    The sinusoidal wavelength $\lambda$ is constrained by the bandwidth $b$
+    and Gaussian spatial scale $\sigma$.
+    """
 
     # n_kernels = len(sigmas) * len(thetas) * len(lambdas) * len(gammas) * len(psis)
     n_kernels = len(bs) * len(sigmas) * len(thetas) * len(gammas) * len(psis)
@@ -262,7 +267,7 @@ def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None):
                                   'theta': theta, 'lambd': lambd,
                                   'gamma': gamma, 'psi': psi}
                         gf = cv2.getGaborKernel(**params, ktype=cv2.CV_32F)
-                        gf = K.expand_dims(gf, -1)  # TODO: Check this is necessary (63, 63, 1, 120)
+                        gf = K.expand_dims(gf, -1)
                         gabors.append(gf)
     assert len(gabors) == n_kernels
     print(f"Created {n_kernels} kernels.")
