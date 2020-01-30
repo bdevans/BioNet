@@ -86,7 +86,7 @@ def plot_gabor_filters(params, images=None, use_gpu=True, fontsize=20, space=0.1
     if images is not None:
 
         if not isinstance(images, list):
-            assert isinstance(image, str) or isinstance(image, np.ndarray)
+            assert isinstance(images, str) or isinstance(images, np.ndarray)
             images = [images]
         
         n_images = len(images)
