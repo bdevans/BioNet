@@ -50,8 +50,12 @@ def load_images(path):
     tally = 0
     for c, (cat, files) in enumerate(tqdm(image_set.items(), desc=path)):
         for i, image in enumerate(files):
-            cimg = plt.imread(os.path.join(path, cat, image))
+            # cimg = plt.imread(os.path.join(path, cat, image))  # plt opens in RGB
+            cimg = cv2.imread(os.path.join(path, cat, image))  # cv2 opens in BGR
             X[i+tally] = np.expand_dims(cv2.cvtColor(cimg, cv2.COLOR_BGR2GRAY), axis=-1)
+            # Alternative in one operation
+            # X[i+tally] = np.expand_dims(cv2.imread(os.path.join(path, cat, image), 
+            #                                        cv2.IMREAD_GRAYSCALE), axis=-1)
         y[tally:tally+len(files), c] = True
         tally += len(files)
 
