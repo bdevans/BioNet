@@ -296,9 +296,11 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
     assert 0 < replace_layer < len(model.layers)
 
     # Parse parameters
+    if params is not None:
     assert 'bs' in params
     if 'sigmas' not in params:
         assert 'lambdas' in params
+
     #     params['sigmas'] = [utils.calc_sigma(lambd, b) for lambd in params['lambdas']
     #                         for b in params['bs']]
     
@@ -332,9 +334,8 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
             del config['batch_input_shape']
             inp = Input(**config)
             x = inp
-            print(f"Input shape: {config['shape']}")
-        elif ind == replace_layer:  # Replace convolutional layer
-            if test:
+        elif ind == replace_layer and params is not None:  # Replace convolutional layer
+            print(f"Replacing layer {ind}: '{layer.name}' --> '{filter_type}_conv'...")
                 n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
                                               * len(params['gammas']) * len(params['psis'])
                 
@@ -352,7 +353,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1, colour
                 assert isinstance(layer, tf.keras.layers.Conv2D)
                 x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
                         name=f"{filter_type}_conv")(x)
-        elif ind == replace_layer + 1:  # Replace next layer
+        elif ind == replace_layer + 1 and params is not None:  # Replace next layer
             # Check input_shape matches output_shape?
             # x = Conv2D(**layers[layer].get_config())(x)
             x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
