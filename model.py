@@ -97,7 +97,7 @@ parser.add_argument('-m', '--model', type=str, default='GaborNet',
                     help='Name of model to use')
 parser.add_argument('-a', '--architecture', type=str, default='model.json',
                     help='Parameter file (JSON) to load')
-parser.add_argument('--upscale', action='store_true', default=False, required=False,
+parser.add_argument('--upscale', action='store_true', #default=False, required=False,
                     help='Flag to upscale the CIFAR10 images')
 parser.add_argument('--interpolate', action='store_true', default=False, required=False,
                     help='Flag to interpolate the images when upscaling')
@@ -396,7 +396,7 @@ else:
                                 shuffle=True, seed=seed, save_to_dir=None)
 
     # if os.path.exists(f"{full_path_to_model}.index") and not clean:
-    if os.path.exists(f"{full_path_to_model}.h5") and not clean:
+    if os.path.exists(f"{full_path_to_model}.h5") and not clean:  # .index
         print(f"Found {mod} - skipping training...")
         model.load_weights(full_path_to_model)
         print(f"{model_name} loaded!")
