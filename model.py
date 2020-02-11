@@ -254,11 +254,13 @@ os.makedirs(models_dir, exist_ok=True)
 os.makedirs(results_dir, exist_ok=True)
 
 if save_images:
-    # save_to_dir = f"/work/results/img/{noise.replace(' ', '_').lower()}"
     save_to_dir = '/work/results/img/'
+    if len(label) > 0:
+        save_to_dir = os.path.join(save_to_dir, label)
     os.makedirs(save_to_dir, exist_ok=True)
 else:
     save_to_dir = None
+    save_prefix = ''
 
 # Hardcode noise levels
 n_levels = 11
@@ -545,8 +547,12 @@ for noise, noise_fuction, levels in noise_types:
         data_gen.mean = mean
         data_gen.std = std
 
+        if save_images:
+            save_prefix = f"{noise.replace(' ', '_').lower()}"
+
         gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
-                                    shuffle=True, seed=seed, save_to_dir=save_to_dir)
+                                    shuffle=True, seed=seed, 
+                                    save_to_dir=save_to_dir, save_prefix=save_prefix)
 
         metrics = model.evaluate_generator(gen_test, steps=gen_test.n//batch,
                                             max_queue_size=max_queue_size,
