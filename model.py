@@ -411,6 +411,10 @@ else:
             tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=logdir, update_freq=2048)
             callbacks.append(tensorboard_cb)
 
+        csv_logger_cb = tf.keras.callbacks.CSVLogger(f'/work/logs/{model_name}.csv', 
+                                                        append=True, separator=',')
+        callbacks.append(csv_logger_cb)
+
         # Create a callback that saves the model's weights
         # checkpoint_path = os.path.join(models_dir, f"{model_name}.ckpt")
         checkpoint_path = os.path.join(models_dir, "model.ckpt")
