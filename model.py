@@ -255,7 +255,7 @@ os.makedirs(results_dir, exist_ok=True)
 
 if save_images:
     save_to_dir = '/work/results/img/'
-    if len(label) > 0:
+    if label:  # len(label) > 0:
         save_to_dir = os.path.join(save_to_dir, label)
     os.makedirs(save_to_dir, exist_ok=True)
 else:
@@ -300,7 +300,7 @@ sim = {'classes': n_classes,
       }
 
 # sim_set = f"test_{datetime.now().strftime('%Y%m%d')}"
-if len(label) > 0:
+if label:  # len(label) > 0:
     sim_set = f"{mod}_{label}_t{trial}_e{epochs}_s{seed}"
 else:
     sim_set = f"{mod}_t{trial}_e{epochs}_s{seed}"
@@ -477,7 +477,7 @@ print("=" * 80)
 
 if args['train_with_noise']:
 
-    if len(label) > 0:
+    if label:  # len(label) > 0:
         sim_set = f"{mod}_{label}_t{trial}_e{epochs}_s{seed}"
     else:
         sim_set = f"{mod}_t{trial}_e{epochs}_s{seed}"
