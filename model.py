@@ -459,7 +459,10 @@ else:
                                       use_multiprocessing=use_multiprocessing,
                                       workers=workers)
 
-        model.save_weights(full_path_to_model)
+        model.save_weights(f"{full_path_to_model}.h5")  # weights only
+        with open(f"{full_path_to_model}.json", "w") as sf:
+            sf.write(model.to_json())  # architecture only
+        model.save(f"{full_path_to_model}_full.h5")  # Full model
         with open(os.path.join(model_output_dir, "model.json"), "w") as sf:
             json.dump(sim, sf, indent=4)
         plots.plot_accuracy(history, chance=1/n_classes, 
