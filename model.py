@@ -245,6 +245,7 @@ use_multiprocessing = False
 verbose = False
 report = 'batch'  # 'epoch'
 # use_initializer = False
+extension = 'h5'  # For saving model/weights
 
 # Output paths
 models_dir = '/work/models'
@@ -395,10 +396,17 @@ else:
     gen_valid = data_gen.flow(x_test, y=y_test, batch_size=batch, 
                                 shuffle=True, seed=seed, save_to_dir=None)
 
+    # if "gabor" in mod.lower() and not use_initializer:
+    if use_initializer or "gabor" not in mod.lower():
+        model_data_file = f"{full_path_to_model}.{extension}"
+    else:
+        model_data_file = f"{full_path_to_model}_weights.{extension}"
+
     # if os.path.exists(f"{full_path_to_model}.index") and not clean:
-    if os.path.exists(f"{full_path_to_model}.h5") and not clean:  # .index
+    if os.path.exists(f"{full_path_to_model}.{extension}") and not clean:  # .index
+        # if os.path.exists(model_data_file) and not clean
         print(f"Found {mod} - skipping training...")
-        model.load_weights(full_path_to_model)
+        model.load_weights(f'{full_path_to_model}.{extension}')
         print(f"{model_name} loaded!")
     else:
         print(f"Training {mod} for {epochs} epochs...")
@@ -471,10 +479,13 @@ else:
                                       use_multiprocessing=use_multiprocessing,
                                       workers=workers)
 
-        model.save_weights(f"{full_path_to_model}.h5")  # weights only
+        if use_initializer:
+            model.save_weights(f"{full_path_to_model}.{extension}")  # weights only
+            # Does not work with lambda layer
         with open(f"{full_path_to_model}.json", "w") as sf:
             sf.write(model.to_json())  # architecture only
-        model.save(f"{full_path_to_model}_full.h5")  # Full model
+        else:
+            model.save(f"{full_path_to_model}_full.{extension}")  # Full model
         with open(os.path.join(model_output_dir, "model.json"), "w") as sf:
             json.dump(sim, sf, indent=4)
 
