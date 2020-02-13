@@ -225,14 +225,14 @@ if upscale:
         x_train_interp = np.zeros(shape=(x_train.shape[0], *image_shape), dtype=np.float16)
         for i, image in enumerate(x_train):
             x_train_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
-                                            interpolation=interpolation)
+                                                    interpolation=interpolation)
         del x_train
         x_train = x_train_interp
 
         x_test_interp = np.zeros(shape=(x_test.shape[0], *image_shape), dtype=np.float16)
         for i, image in enumerate(x_test):
             x_test_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
-                                            interpolation=interpolation)
+                                                    interpolation=interpolation)
         del x_test
         x_test = x_test_interp
     else:
@@ -503,8 +503,8 @@ else:
         if use_initializer:
             model.save_weights(f"{full_path_to_model}.{extension}")  # weights only
             # Does not work with lambda layer
-        with open(f"{full_path_to_model}.json", "w") as sf:
-            sf.write(model.to_json())  # architecture only
+            with open(f"{full_path_to_model}.json", "w") as sf:
+                sf.write(model.to_json())  # architecture only
         else:
             model.save(f"{full_path_to_model}_full.{extension}")  # Full model
         with open(os.path.join(model_output_dir, "model.json"), "w") as sf:
