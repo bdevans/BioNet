@@ -50,6 +50,7 @@ def load_images(path):
     tally = 0
     for c, (cat, files) in enumerate(tqdm(image_set.items(), desc=path)):
         for i, image in enumerate(files):
+            # TODO: Rerun due to previously incorrect channel order
             # cimg = plt.imread(os.path.join(path, cat, image))  # plt opens in RGB
             cimg = cv2.imread(os.path.join(path, cat, image))  # cv2 opens in BGR
             X[i+tally] = np.expand_dims(cv2.cvtColor(cimg, cv2.COLOR_BGR2GRAY), axis=-1)
