@@ -1,14 +1,5 @@
 #!/usr/bin/env python
 
-# TODO: Try initialiser again and schedule learning rate drops
-
-# Set training schedule
-# assert len(boundaries) <= 4
-# boundaries = [-1] * (4 - len(boundaries)) + boundaries
-# print('epoch boundaries for finetuning: {}'.format(boundaries))
-# boundaries = [pretrained_epochs_new + x for x in boundaries]
-# decay_rates = [1, 0.1, 0.01, 0.001, 1e-4]
-
 # dtype = 'float16'  # Not supported on Titan Xp
 # tf.keras.backend.set_floatx(dtype)
 # tf.keras.backend.set_epsilon(1e-4)  # Default 1e-7
@@ -439,6 +430,14 @@ else:
             reduce_lr_cb = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2,
                                                                 patience=5, min_lr=1e-8, verbose=1)
             callbacks.append(reduce_lr_cb)
+
+        # Alternative from Geirhos et al. 
+        # Set training schedule
+        # assert len(boundaries) <= 4
+        # boundaries = [-1] * (4 - len(boundaries)) + boundaries
+        # print('epoch boundaries for finetuning: {}'.format(boundaries))
+        # boundaries = [pretrained_epochs_new + x for x in boundaries]
+        # decay_rates = [1, 0.1, 0.01, 0.001, 1e-4]
 
         # def scheduler(epoch):
         #     if epoch < 10:
