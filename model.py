@@ -480,6 +480,13 @@ else:
         print(f"{model_name} training finished!")
 print("=" * 80)
 
+if skip_test:
+    print("Skipping testing.")
+    # Clear GPU memory
+    tf.keras.backend.clear_session()
+    print("=" * 80)
+    sys.exit()
+
 if args['train_with_noise']:
 
     if label:  # len(label) > 0:
