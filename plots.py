@@ -1,6 +1,7 @@
 from pprint import pprint
 
 from matplotlib import pyplot as plt
+import seaborn as sns
 import numpy as np
 from scipy import signal
 import cv2
@@ -33,6 +34,7 @@ def plot_accuracy(history, chance=None, filename=None, ax=None, figsize=(12, 8))
         fig.savefig(filename)
     return (fig, ax)
 
+
 def plot_loss(history, filename=None, ax=None, figsize=(12, 8)):
     # Plot training metrics
         
@@ -51,6 +53,74 @@ def plot_loss(history, filename=None, ax=None, figsize=(12, 8)):
     ax.set_ylabel("Loss")
     # ax.set_ylim((0, 1))
     ax.legend()
+    if filename:
+        fig.savefig(filename)
+    return (fig, ax)
+
+
+def plot_metrics(history, epochs, metrics, ax):
+    for metric in metrics:
+        ax.plot(range(1, epochs+1), history.history[metric], label=metric)
+    ax.set_xlabel("Epoch")
+    ax.set_xlim((0, epochs+1))
+    ax.set_ylabel("Score")
+    ax.legend()
+
+
+def plot_history(history, chance=None, metrics=None, filename=None, figsize=(12, 16)):
+
+    if metrics is None:
+        metrics = list(history.history.keys())
+    
+    acc_metrics = []
+    loss_metrics = []
+    other_metrics = []
+
+    for metric in metrics:
+        if 'acc' in metric:
+            acc_metrics.append(metric)
+        elif 'loss' in metric:
+            loss_metrics.append(metric)
+        else:
+            other_metrics.append(metric)
+    
+    include_acc = bool(len(acc_metrics) > 0)
+    include_loss = bool(len(loss_metrics) > 0)
+    include_other = bool(len(other_metrics) > 0)
+
+    epochs = len(history.history['loss'])  # Always included in history?
+
+    nrows = int(include_acc) + int(include_loss) + int(include_other)
+    assert nrows > 0
+    if figsize is None:
+        width, height = 12, 6
+        figsize = (width, height*nrows)
+
+    fig, ax = plt.subplots(nrows=nrows, ncols=1, sharex=True, squeeze=True, figsize=figsize)
+
+    row = 0
+    if include_loss:
+        plot_metrics(history, epochs, loss_metrics, ax[row])
+        ax[row].set_ylabel("Loss")
+        if include_acc or include_other:
+            ax[row].set_xlabel('')
+        row += 1
+
+    if include_acc:
+        plot_metrics(history, epochs, acc_metrics, ax[row])
+        if chance:
+            ax[row].axhline(y=chance, color='grey', linestyle='--', label="Chance")
+            # ax[row].hlines(chance, 1, epochs, color='grey', linestyle='--', label="Chance")
+        ax[row].set_ylabel("Accuracy")
+        ax[row].set_ylim((0, 1))
+        if include_other:
+            ax[row].set_xlabel('')
+        row += 1
+    
+    if include_other:
+        plot_metrics(history, epochs, other_metrics, ax[row])
+        row += 1
+
     if filename:
         fig.savefig(filename)
     return (fig, ax)
