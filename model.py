@@ -474,9 +474,19 @@ else:
         model.save(f"{full_path_to_model}_full.h5")  # Full model
         with open(os.path.join(model_output_dir, "model.json"), "w") as sf:
             json.dump(sim, sf, indent=4)
-        plots.plot_accuracy(history, chance=1/n_classes, 
-                            filename=f'{mod}_train_CIFAR10_{trial}.png')
-        plots.plot_loss(history, filename=f'{mod}_train_CIFAR10_loss_{trial}.png')
+
+        learning_curves = os.path.join(model_output_dir, f'{model_name}.png')  # f'{mod}_train_CIFAR10_{trial}.png')
+        plots.plot_history(history, chance=1/n_classes, filename=learning_curves)
+        # Alternative
+        # from matplotlib import pyplot as plt
+        # fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(12,12))
+        # plots.plot_loss(history, ax=ax[0])
+        # plots.plot_accuracy(history, chance=1/n_classes, ax=ax[1])
+        # fig.savefig(f'{mod}_train_CIFAR10_{trial}_old.png')
+        # Old method
+        # plots.plot_accuracy(history, chance=1/n_classes, 
+        #                     filename=f'{mod}_train_CIFAR10_{trial}.png')
+        # plots.plot_loss(history, filename=f'{mod}_train_CIFAR10_loss_{trial}.png')
         print(f"{model_name} training finished!")
 print("=" * 80)
 
