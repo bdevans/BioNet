@@ -63,13 +63,11 @@ contrast_level = 1  # Proportion of original contrast level for uniform and salt
 params = {# 'ksize': (127, 127), 
           'ksize': (63, 63),
           'gammas': [0.5], 
-        #   'gammas': [0.25], 
 #           'bs': np.linspace(0.4, 2.6, num=3),  # 0.4, 1, 1.8, 2.6
 #           'bs': np.linspace(0.4, 2.6, num=5),
           'bs': np.linspace(1, 2.6, num=3).tolist(),
 #           'bs': np.linspace(1, 2.6, num=5),
 #           'sigmas': [4, 8, 16],  # , 32 
-#           'sigmas': [4, 8],
           'sigmas': [8],
           'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
           'psis': [np.pi/2, 3*np.pi/2]}
@@ -162,6 +160,7 @@ else:
 
 interpolation = cv2.INTER_LANCZOS4  # cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC
 
+# TODO: Finish or remove
 if args['train_with_noise']:
     # Train the model with the noise-like masks
     data_augmentation = False
@@ -241,7 +240,7 @@ workers = 4
 use_multiprocessing = False
 verbose = False
 report = 'batch'  # 'epoch'
-use_initializer = False
+# use_initializer = False
 
 # Output paths
 models_dir = '/work/models'
@@ -497,6 +496,7 @@ if skip_test:
     print("=" * 80)
     sys.exit()
 
+# TODO: Finish or remove
 if args['train_with_noise']:
 
     if label:  # len(label) > 0:
@@ -535,7 +535,7 @@ if args['train_with_noise']:
     #     with open(os.path.join(save_dir, f'{model_name}_CONDVALLOSS.json'), "w") as jf:
     #         json.dump(cond_loss, jf)
 
-
+# TODO: Optionally test (and generate through the ImageDataGenerator) unperturbed images (L0)
 for noise, noise_fuction, levels in noise_types:
     print(f"[{model_name}] Perturbing test images with {noise} noise...")
     print("-" * 80)
