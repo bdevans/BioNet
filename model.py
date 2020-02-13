@@ -49,16 +49,15 @@ gpus = tf.config.experimental.list_physical_devices('GPU')
 pprint.pprint(gpus)
 
 
-# CIFAR10 metadata
+# Stimuli metadata
+luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma transform)
 data_set = 'CIFAR10'
+n_classes = 10
+# CIFAR10 image statistics calculated across the training set (after converting to greyscale)
 mean = 122.61930353949222
 std = 60.99213660091195
-luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma transform)
-n_classes = 10
-# upscale = True
 colour = 'grayscale'  # 'rgb'
-
-
+contrast_level = 1  # Proportion of original contrast level for uniform and salt and pepper noise
 
 # Gabor parameters
 params = {# 'ksize': (127, 127), 
@@ -289,6 +288,7 @@ sim = {'classes': n_classes,
        'image_shape': image_shape,
        'colour': colour,
        'luminance_rgb_weights': luminance_weights.tolist(),
+       'contrast_level': contrast_level,
        'image_out_dir': save_to_dir,
        'models_dir': models_dir,
        'results_dir': results_dir,
@@ -552,10 +552,10 @@ for noise, noise_fuction, levels in noise_types:
 
         if noise == "Uniform":
             perturbation_fn = functools.partial(noise_fuction, width=level, 
-                                                contrast_level=1, rng=rng)
+                                                contrast_level=contrast_level, rng=rng)
         elif noise == "Salt and Pepper":
             perturbation_fn = functools.partial(noise_fuction, p=level, 
-                                                contrast_level=1, rng=rng)
+                                                contrast_level=contrast_level, rng=rng)
         elif noise == "High Pass" or noise == "Low Pass":
             perturbation_fn = functools.partial(noise_fuction, std=level)
         elif noise == "Contrast":
