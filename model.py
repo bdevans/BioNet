@@ -220,16 +220,25 @@ else:
     y_test = to_categorical(y_test, num_classes=n_classes, dtype='uint8')
 
 if upscale:
-    # Equivalent to cv2.INTER_NEAREST (or PIL.Image.NEAREST)
-    x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
-    x_test = x_test.repeat(7, axis=1).repeat(7, axis=2)
     if interpolate:
+        print(f'Interpolating upscaled images with "{interpolation}"...')
+        x_train_interp = np.zeros(shape=(x_train.shape[0], *image_shape), dtype=np.float16)
         for i, image in enumerate(x_train):
-            x_train[i, :, :, 0] = cv2.resize(image, dsize=image_shape[:-1], 
+            x_train_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
                                             interpolation=interpolation)
+        del x_train
+        x_train = x_train_interp
+
+        x_test_interp = np.zeros(shape=(x_test.shape[0], *image_shape), dtype=np.float16)
         for i, image in enumerate(x_test):
-            x_test[i, :, :, 0] = cv2.resize(image, dsize=image_shape[:-1], 
+            x_test_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
                                             interpolation=interpolation)
+        del x_test
+        x_test = x_test_interp
+    else:
+        # Equivalent to cv2.INTER_NEAREST (or PIL.Image.NEAREST)
+        x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
+        x_test = x_test.repeat(7, axis=1).repeat(7, axis=2)
 
 x_train = x_train.astype(np.float16)
 x_test = x_test.astype(np.float16)
