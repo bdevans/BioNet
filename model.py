@@ -592,11 +592,15 @@ for noise, noise_fuction, levels in noise_types:
         data_gen.std = std
 
         if save_images:
-            save_prefix = f"{noise.replace(' ', '_').lower()}"
+            # save_prefix = f"{noise.replace(' ', '_').lower()}"
+            test_image_dir = os.path.join(save_to_dir, noise.replace(' ', '_').lower())
+            os.makedirs(test_image_dir, exist_ok=True)
+            save_prefix = f"L{l_ind+1:02d}"
 
         gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
-                                    shuffle=True, seed=seed, 
-                                    save_to_dir=save_to_dir, save_prefix=save_prefix)
+                                    shuffle=False, seed=seed,  # True
+                                    save_to_dir=test_image_dir, save_prefix=save_prefix)
+                                    # save_to_dir=save_to_dir, save_prefix=save_prefix)
 
         metrics = model.evaluate_generator(gen_test, steps=gen_test.n//batch,
                                             max_queue_size=max_queue_size,
