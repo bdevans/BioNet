@@ -154,9 +154,13 @@ label = args['label']
 assert 0 < trial
 
 if upscale:
-    image_shape = (224, 224, 1)
+    image_size = (224, 224)
+    image_shape = image_size + (1,)
+    # image_shape = (224, 224, 1)
 else:
-    image_shape = (32, 32, 1)
+    image_size = (32, 32)
+    image_shape = image_size + (1,)
+    # image_shape = (32, 32, 1)
 
 interpolation = cv2.INTER_LANCZOS4  # cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC
 
@@ -336,7 +340,7 @@ model = tf.keras.applications.vgg16.VGG16(weights=weights,
                                             include_top=True, 
                                             classes=1000)
 model = utils.substitute_layer(model, filter_params, 
-                                input_shape=image_shape[:-1], 
+                                input_shape=image_size, 
                                 colour_input=colour, 
                                 use_initializer=use_initializer)
 if n_classes != 1000:
