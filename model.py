@@ -99,6 +99,8 @@ parser.add_argument('-r', '--lr', '--learning_rate', type=float, default=1e-4, r
                     help='Learning rate for training')
 parser.add_argument('-d', '--decay', type=float, default=1e-6, required=False,
                     help='Optimizer decay for training')
+parser.add_argument('-i', '--use_initializer', action='store_true', default=False, required=False,
+                    help='Flag to use the weight initializer (then freeze weights) for the Gabor filters')
 parser.add_argument('--trial', type=int, default=1,  # default to 0 when unspecified?
                     help='Trial number For labeling different runs of the same model')
 parser.add_argument('--label', type=str, default='',
@@ -117,9 +119,11 @@ parser.add_argument('--data_augmentation', action='store_true', # type=bool, def
                     help='Flag to train the model with data augmentation')
 parser.add_argument('-c', '--clean', action='store_true', default=False, required=False,
                     help='Flag to retrain model')
+parser.add_argument('--skip_test', action='store_true',
+                    help='Flag to skip testing the model')
 parser.add_argument('-l', '--log', action='store_true', default=False, required=False,  # type=bool, 
                     help='Flag to log training data')
-parser.add_argument('-i', '--save_images', action='store_true', default=False, required=False,
+parser.add_argument('--save_images', action='store_true', default=False, required=False,
                     help='Flag to save preprocessed (perturbed) test images')
 parser.add_argument('-p', '--save_predictions', action='store_true', default=False, required=False,  # type=bool, 
                     help='Flag to save category predictions')
@@ -142,6 +146,8 @@ data_augmentation = args['data_augmentation']
 optimizer = args['optimizer']  # 'RMSprop'
 lr = args['lr']  # 0.0001  # 0.0005  # 0.0004  # 0.001  # 0.025
 decay = args['decay']  # 1e-6  #
+use_initializer = args['use_initializer']
+skip_test = args['skip_test']
 save_images = args['save_images']
 save_predictions = args['save_predictions']
 seed = args['seed']  # 420420420
