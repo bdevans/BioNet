@@ -318,17 +318,18 @@ sim_file = f"{sim_set}.json"
 with open(os.path.join(results_dir, sim_file), "w") as sf:
     json.dump(sim, sf, indent=4)
 
-stimuli = {
-    'noise': {noise: levels.tolist() for noise, _, levels in noise_types},
-    'image_mean': mean,
-    'image_std': std,
-    'image_shape': image_shape,
-    'colour': colour,
-    'luminance_rgb_weights': luminance_weights.tolist(),
-    'contrast_level': contrast_level,
-    }
-with open(os.path.join(save_to_dir, 'stimuli.json'), "w") as sf:
-    json.dump(stimuli, sf, indent=4)
+if save_images:
+    stimuli = {
+        'noise': {noise: levels.tolist() for noise, _, levels in noise_types},
+        'image_mean': mean,
+        'image_std': std,
+        'image_shape': image_shape,
+        'colour': colour,
+        'luminance_rgb_weights': luminance_weights.tolist(),
+        'contrast_level': contrast_level,
+        }
+    with open(os.path.join(save_to_dir, 'stimuli.json'), "w") as sf:
+        json.dump(stimuli, sf, indent=4)
 
 # test_metrics = {mod: [] for mod in models}
 if save_predictions:
