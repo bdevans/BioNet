@@ -581,6 +581,8 @@ for noise, noise_fuction, levels in noise_types:
     for l_ind, level in enumerate(levels):
         print(f"[{l_ind+1:02d}/{len(levels)}] level={float(level):6.2f}: ", end='', flush=True)
 
+        t0 = time.time()
+        # t0 = datetime.now()
         rng = np.random.RandomState(seed=seed+l_ind)
 
         # if noise in ["Uniform", "Salt and Pepper"]:  # Stochastic perturbations
@@ -632,11 +634,13 @@ for noise, noise_fuction, levels in noise_types:
                                             workers=workers)
         # print(model.metrics_names)
         # print(f"{mod} metrics: {metrics}")
+        t_elapsed = time.time() - t0
+        # t_elapsed = datetime.now() - t0
         if train:
             metrics_dict = {metric: score for metric, score in zip(model.metrics_names, metrics)}
-            print(f"{metrics_dict}")
+            print(f"{metrics_dict} [{t_elapsed:.3f}s]")
         else:
-            print(f"{metrics}")
+            print(f"{metrics} [{t_elapsed:.3f}s]")
 
         # test_metrics[mod].append(metrics)
 
