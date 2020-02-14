@@ -622,6 +622,8 @@ for noise, noise_fuction, levels in noise_types:
             test_image_dir = os.path.join(save_to_dir, noise.replace(' ', '_').lower())
             os.makedirs(test_image_dir, exist_ok=True)
             save_prefix = f"L{l_ind+1:02d}"
+        else:
+            test_image_dir = None
 
         gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
                                     shuffle=False, seed=seed,  # True
