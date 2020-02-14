@@ -193,23 +193,6 @@ def adjust_contrast(image, contrast_level):
     return (1-contrast_level)/2.0 + image.dot(contrast_level)
 
 
-def uniform_noise(image, width, contrast_level, rng):
-    """Convert to grayscale. Adjust contrast. Apply uniform noise.
-
-    parameters:
-    - image: a numpy.ndarray 
-    - width: a scalar indicating width of additive uniform noise
-             -> then noise will be in range [-width, width]
-    - contrast_level: a scalar in [0, 1]; with 1 -> full contrast
-    - rng: a np.random.RandomState(seed=XYZ) to make it reproducible
-    """
-
-    # image = grayscale_contrast(image, contrast_level)
-    image = adjust_contrast(image, contrast_level)
-
-    return apply_uniform_noise(image, -width, width, rng)
-
-
 def salt_and_pepper_noise(image, p, contrast_level, rng, check=False):
     """Convert to grayscale. Adjust contrast. Apply salt and pepper noise.
     parameters:
@@ -240,6 +223,23 @@ def salt_and_pepper_noise(image, p, contrast_level, rng, check=False):
         assert is_in_bounds(image, 0, 1), "values <0 or >1 occurred"
 
     return image
+
+
+def uniform_noise(image, width, contrast_level, rng):
+    """Convert to grayscale. Adjust contrast. Apply uniform noise.
+
+    parameters:
+    - image: a numpy.ndarray 
+    - width: a scalar indicating width of additive uniform noise
+             -> then noise will be in range [-width, width]
+    - contrast_level: a scalar in [0, 1]; with 1 -> full contrast
+    - rng: a np.random.RandomState(seed=XYZ) to make it reproducible
+    """
+
+    # image = grayscale_contrast(image, contrast_level)
+    image = adjust_contrast(image, contrast_level)
+
+    return apply_uniform_noise(image, -width, width, rng)
 
 
 def apply_uniform_noise(image, low, high, rng=None, check=False):
