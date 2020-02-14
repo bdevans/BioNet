@@ -258,6 +258,7 @@ extension = 'h5'  # For saving model/weights
 
 # Output paths
 models_dir = '/work/models'
+logs_dir = '/work/logs'
 results_dir = '/work/results'
 os.makedirs(models_dir, exist_ok=True)
 os.makedirs(results_dir, exist_ok=True)
@@ -437,12 +438,13 @@ else:
         if args['log']:
             # Create a tensorboard callback
             # logdir = '/work/logs/scalars/' + datetime.now().strftime("%Y%m%d-%H%M%S")
-            logdir = f'/work/logs/scalars/{datetime.now():%Y%m%d-%H%M%S}'
+            logdir = os.path.join(logs_dir, 'scalars', f'{datetime.now():%Y%m%d-%H%M%S}')
             tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=logdir, update_freq=2048)
             callbacks.append(tensorboard_cb)
 
-        csv_logger_cb = tf.keras.callbacks.CSVLogger(f'/work/logs/{model_name}.csv', 
-                                                        append=True, separator=',')
+        resume_training = False
+        csv_logger_cb = tf.keras.callbacks.CSVLogger(os.path.join(logs_dir, f'{model_name}.csv'), 
+                                                        append=resume_training, separator=',')
         callbacks.append(csv_logger_cb)
 
         # Create a callback that saves the model's weights
@@ -511,7 +513,7 @@ else:
         with open(os.path.join(model_output_dir, "model.json"), "w") as sf:
             json.dump(sim, sf, indent=4)
 
-        learning_curves = os.path.join(model_output_dir, f'{model_name}.png')  # f'{mod}_train_CIFAR10_{trial}.png')
+        learning_curves = os.path.join(logs_dir, f'{model_name}.png')  # f'{mod}_train_CIFAR10_{trial}.png')
         plots.plot_history(history, chance=1/n_classes, filename=learning_curves)
         # Alternative
         # from matplotlib import pyplot as plt
