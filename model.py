@@ -12,7 +12,7 @@ import warnings
 import functools
 import csv
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 
 import numpy as np
@@ -445,6 +445,7 @@ else:
         print(f"{model_name} loaded!")
     else:
         print(f"Training {mod} for {epochs} epochs...")
+        t0 = time.time()
 
         callbacks = []
         if args['log']:
@@ -537,7 +538,8 @@ else:
         # plots.plot_accuracy(history, chance=1/n_classes, 
         #                     filename=f'{mod}_train_CIFAR10_{trial}.png')
         # plots.plot_loss(history, filename=f'{mod}_train_CIFAR10_loss_{trial}.png')
-        print(f"{model_name} training finished!")
+        t_elapsed = time.time() - t0
+        print(f"{model_name} training finished [{str(timedelta(seconds=t_elapsed))}]!")
 print("=" * 80)
 
 if skip_test:
