@@ -306,8 +306,8 @@ print(f'Testing: {x_test.shape[0]} in {y_test.shape[1]} categories')
 if recalculate_statistics or interpolate:
     data_gen = ImageDataGenerator(featurewise_center=True, featurewise_std_normalization=True)
     data_gen.fit(x_train)
-    mean = data_gen.mean
-    std = data_gen.std
+    mean = np.squeeze(data_gen.mean).tolist()
+    std = np.squeeze(data_gen.std).tolist()
 print(f'Training statistics: mean={mean}; std={std}')
 
 # Save metadata
