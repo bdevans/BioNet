@@ -89,6 +89,8 @@ parser.add_argument('--epochs', type=int, default=20, required=False,
                     help='Number of epochs to train model')
 parser.add_argument("-b", "--batch", type=int, default=64,
 	                help="Size of mini-batches passed to the network")
+parser.add_argument('--image_path', type=str, default='',
+                    help='Path to image files to load')
 parser.add_argument('--data_augmentation', action='store_true', # type=bool, default=False,
                     help='Flag to train the model with data augmentation')
 parser.add_argument('-c', '--clean', action='store_true', default=False, required=False,
@@ -116,6 +118,7 @@ train = args['train']
 clean = args['clean']
 epochs = args['epochs']
 batch = args['batch']  # 64  # 32
+image_path = args['image_path']
 data_augmentation = args['data_augmentation']
 recalculate_statistics = args['recalculate_statistics']
 optimizer = args['optimizer']  # 'RMSprop'
@@ -204,6 +207,16 @@ else:
     # image_shape = (32, 32, 1)
 
 interpolation = cv2.INTER_LANCZOS4  # cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC
+
+if image_path and os.path.isdir(image_path):
+    load_images_from_disk = True
+    # Assumes there are the directories "train" and "test" in image_path
+
+    train_images, x_train, y_train = utils.load_images(os.path.join(image_path, 'train'))
+    assert n_classes == len(train_images)
+
+    test_images, x_test, y_test = utils.load_images(os.path.join(image_path, 'test'))  # test_path
+    assert n_classes == len(test_images)
 
 # TODO: Finish or remove
 if args['train_with_noise']:

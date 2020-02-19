@@ -36,6 +36,51 @@ from tensorflow.python.framework import dtypes
 #     config.gpu_options.visible_device_list = "0"
 #     set_session(tensorflow.Session(config=config))
 
+
+def load_images(path):
+
+    image_set = {}
+    for root, dirs, files in os.walk(path):
+        if root == path:
+            categories = sorted(dirs)
+            image_set = {cat: [] for cat in categories}
+        else:
+            image_set[os.path.basename(root)] = sorted(files)
+
+    n_cat_images = {cat: len(files) for (cat, files) in image_set.items()}
+    n_images = sum(n_cat_images.values())
+    image_dims = plt.imread(os.path.join(path, categories[0],
+                            image_set[categories[0]][0])).shape
+
+    print(image_dims)
+    X = np.zeros((n_images, image_dims[0], image_dims[1], 1), dtype='float16')  # 'float32'
+    y = np.zeros((n_images, len(categories)), dtype=int)
+
+    tally = 0
+    for c, (cat, files) in enumerate(tqdm(image_set.items(), desc=path)):
+        for i, image in enumerate(files):
+            cimg = cv2.imread(os.path.join(path, cat, image))  # cv2 opens in BGR
+            X[i+tally] = np.expand_dims(cv2.cvtColor(cimg, cv2.COLOR_BGR2GRAY), axis=-1)
+            # Alternative in one operation
+            # X[i+tally] = np.expand_dims(cv2.imread(os.path.join(path, cat, image), 
+            #                                        cv2.IMREAD_GRAYSCALE), axis=-1)
+        y[tally:tally+len(files), c] = True
+        tally += len(files)
+
+    shuffle = np.random.permutation(y.shape[0])
+
+    return image_set, X[shuffle], y[shuffle]
+
+
+# def upscale_images(images, size, interpolation=None):
+# """Images: (n_images, height, width, n_channels)"""
+#     if interpolation is None:
+#         x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
+#         x_test = x_test.repeat(7, axis=1).repeat(7, axis=2)
+#     else:
+#         for image in images:
+#             resized = cv2.resize(img, dim, interpolation=interpolation)
+
 def calc_bandwidth(lambd, sigma):
     r = np.pi*sigma/lambd
     c = np.sqrt(np.log(2)/2)
