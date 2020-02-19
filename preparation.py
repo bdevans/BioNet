@@ -37,7 +37,7 @@ def as_perturbation_fn(f):
         image = image[..., ::-1]  # Assumes channels last
         # Assume this expects RGB values in range [0, 1]
         perturbed = f(image)
-        
+
         # TODO: Try converting back
         # image = grey2rgb(image)
 
@@ -107,7 +107,7 @@ def as_greyscale_perturbation_fn(f):
 
         # Assume this expects RGB values in range [0, 1]
         perturbed = f(image)
-        
+
         assert perturbed.dtype in [np.float16, np.float32, np.float64]
         # Replicate greyscale values for all three channels
         if perturbed.ndim == 2:
@@ -154,17 +154,15 @@ def cifar_wrapper(f):
         image /= 255
 
         # Assume this expects RGB values in range [0, 1]
-        perturbed = f(image)
+        perturbed = f(np.squeeze(image))
 
         assert perturbed.dtype in [np.float16, np.float32, np.float64]
+        if perturbed.ndim == 3 and perturbed.shape[-1] > 1:
+            # Should this be np.expand_dims(np.dot(perturbed, luminance_weights), axis=-1)?
+            perturbed = perturbed[:, :, 0]
         # Replicate greyscale values for all three channels
         if perturbed.ndim == 2:
             perturbed = perturbed[..., np.newaxis]
-        # HACK
-        if perturbed.shape[-1] > 1:
-            perturbed = perturbed[:, :, 0]
-            if perturbed.ndim == 2:
-                perturbed = perturbed[..., np.newaxis]
         assert image.shape == perturbed.shape, f"{image.shape} --> {perturbed.shape}"
         if perturbed.dtype == np.float64:
             perturbed = perturbed.astype(np.float32)
@@ -255,7 +253,8 @@ def apply_uniform_noise(image, low, high, rng=None, check=False):
     nrow = image.shape[0]
     ncol = image.shape[1]
 
-    image = image + get_uniform_noise(low, high, nrow, ncol, rng)
+    # Fixed: Using [..., np.newaxis] bevause get_uniform_noise is 2-D but image is 3-D
+    image = image + get_uniform_noise(low, high, nrow, ncol, rng)#[..., np.newaxis]
 
     #clip values
     # image = np.where(image < 0, 0, image)
@@ -316,9 +315,10 @@ def high_pass_filter(image, std):
     # image = rgb2grey(image)
     new_image = np.zeros(image.shape, image.dtype)
 
-    # aplly the gaussian filter and subtract from the original image
-    gauss_filter = gaussian_filter(image, std, mode ='constant', cval=bg_grey)
-    new_image = image - gauss_filter
+    # apply the gaussian filter and subtract from the original image
+    # gauss_filter = gaussian_filter(image[:, :, 0], std, mode='constant', cval=bg_grey)
+    gauss_filter = gaussian_filter(image, std, mode='constant', cval=bg_grey)
+    new_image = image - gauss_filter#[..., np.newaxis]
 
     # add mean of old image to retain image statistics
     mean_diff = bg_grey - np.mean(new_image, axis=(0,1))
@@ -346,8 +346,10 @@ def low_pass_filter(image, std):
     # image = rgb2grey(image)
     new_image = np.zeros(image.shape, image.dtype)
 
-    # aplly Gaussian low-pass filter
-    new_image = gaussian_filter(image, std, mode ='constant', cval=bg_grey)
+    # apply Gaussian low-pass filter
+    # new_image = gaussian_filter(image[:, :, 0], std, mode='constant', cval=bg_grey)
+    new_image = gaussian_filter(image, std, mode='constant', cval=bg_grey)
+    new_image = new_image#[..., np.newaxis]
 
     # crop too small and too large values
     new_image[new_image < 0] = 0
@@ -373,7 +375,7 @@ def power_equalisation(image, avg_power_spectrum):
     
     parameter:
     - image: a numpy.ndarray"""
-    
+
     return equalise_power_spectrum(image, avg_power_spectrum)
 
 
@@ -388,7 +390,7 @@ def scramble_phases(image, width):
     length = (image.shape[0]-1)*(image.shape[1]-1)
     phase_shifts = np.random.random(length//2) - 0.5
     phase_shifts = phase_shifts * 2 * width/180 * np.pi
-    
+
     # convert to graysclae
     # channel = rgb2grey(image)
     channel = image
@@ -457,7 +459,7 @@ def equalise_power_spectrum(image, avg_power_spectrum):
     - image: a numpy.ndarray
     - avg_power_spectrum: an array of the same dimension as one of images channels
                           containing the average over all images amplitude spectrum"""
-    
+
     # check input dimensions
     assert image.shape[:2] == avg_power_spectrum.shape, 'Image shape={} unequal \
             avg_spectrum shape={}'.format(image.shape[:2], avg_power_spectrum.shape)
@@ -511,10 +513,10 @@ def rotate_image(image, degrees):
 
 def rotate90(image):
     """Rotate an image by 90 degrees.
-    
+
     parameters:
     - image: a numpy.ndarray"""
-    
+
     # grey_channel = rgb2grey(image)
     grey_channel = image
     new_channel = np.transpose(grey_channel, axes=(1,0))[::-1,:]
@@ -525,7 +527,7 @@ def rotate180(image):
     
     parameters:
     - image: a numpy.ndarray"""
-    
+
     # grey_channel = rgb2grey(image)
     grey_channel = image
     new_channel = grey_channel[::-1,::-1]
@@ -536,7 +538,7 @@ def rotate270(image):
     
     parameters:
     - image: a numpy.ndarray"""
-    
+
     # grey_channel = rgb2grey(image)
     grey_channel = image
     new_channel = np.transpose(grey_channel[::-1,:], axes=(1,0))
