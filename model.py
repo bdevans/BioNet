@@ -185,8 +185,8 @@ else:
 
 # Hardcode noise levels
 n_levels = 11
-noise_types = [("Uniform", uniform_noise, np.linspace(0, 0.5, n_levels)),
-               ("Salt and Pepper", salt_and_pepper_noise, np.linspace(0, 0.5, n_levels)),
+noise_types = [("Uniform", uniform_noise, np.linspace(0, 1, n_levels)),
+               ("Salt and Pepper", salt_and_pepper_noise, np.linspace(0, 1, n_levels)),
             #    ("High Pass", high_pass_filter, np.logspace(np.log10(5), np.log10(0.3), n_levels)),
             #    ("High Pass", high_pass_filter, np.logspace(0, -1, n_levels)),
                ("High Pass", high_pass_filter, np.logspace(2, 0, n_levels)),
