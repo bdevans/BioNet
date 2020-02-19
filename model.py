@@ -507,13 +507,13 @@ else:
                                       workers=workers)
 
         if use_initializer:
-            model.save_weights(f"{full_path_to_model}.{extension}")  # weights only
+            model.save_weights(f"{full_path_to_model}_weights.{extension}")  # weights only
             # Does not work with lambda layer
             with open(f"{full_path_to_model}.json", "w") as sf:
                 sf.write(model.to_json())  # architecture only
         else:
-            model.save(f"{full_path_to_model}_full.{extension}")  # Full model
-        with open(os.path.join(model_output_dir, "model.json"), "w") as sf:
+            model.save(f"{full_path_to_model}.{extension}")  # Full model
+        with open(os.path.join(model_output_dir, "simulation.json"), "w") as sf:
             json.dump(sim, sf, indent=4)
 
         learning_curves = os.path.join(logs_dir, f'{model_name}.png')  # f'{mod}_train_CIFAR10_{trial}.png')
