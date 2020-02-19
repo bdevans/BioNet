@@ -278,9 +278,11 @@ n_levels = 11
 noise_types = [("Uniform", uniform_noise, np.linspace(0, 0.5, n_levels)),
                ("Salt and Pepper", salt_and_pepper_noise, np.linspace(0, 0.5, n_levels)),
             #    ("High Pass", high_pass_filter, np.logspace(np.log10(5), np.log10(0.3), n_levels)),
-               ("High Pass", high_pass_filter, np.logspace(0, -1, n_levels)),
+            #    ("High Pass", high_pass_filter, np.logspace(0, -1, n_levels)),
+               ("High Pass", high_pass_filter, np.logspace(2, 0, n_levels)),
             #    ("Low Pass", low_pass_filter, np.logspace(0, np.log10(40), n_levels)),
-               ("Low Pass", low_pass_filter, np.logspace(-1, 1, n_levels)),
+            #    ("Low Pass", low_pass_filter, np.logspace(-1, 1, n_levels)),
+               ("Low Pass", low_pass_filter, np.logspace(0, 2, n_levels)),
                ("Contrast", adjust_contrast, np.logspace(0, -2, n_levels)),
                ("Phase Scrambling", scramble_phases, np.linspace(0, 180, n_levels))]#,
                #("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int))]
