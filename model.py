@@ -281,6 +281,7 @@ if upscale:
         x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
         x_test = x_test.repeat(7, axis=1).repeat(7, axis=2)
 
+# NOTE: This is later overridden by the ImageDataGenerator which has 'float32' as the default
 x_train = x_train.astype(np.float16)
 x_test = x_test.astype(np.float16)
 
