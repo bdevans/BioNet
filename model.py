@@ -250,7 +250,7 @@ print(f'Training: {x_train.shape[0]} in {y_train.shape[1]} categories')
 print(f'Testing: {x_test.shape[0]} in {y_test.shape[1]} categories')
 
 max_queue_size = 10
-workers = 8  # 4
+workers = 12  # 4
 use_multiprocessing = False
 verbose = False
 report = 'batch'  # 'epoch'
