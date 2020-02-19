@@ -344,17 +344,6 @@ if save_images:
     with open(os.path.join(save_to_dir, 'stimuli.json'), "w") as sf:
         json.dump(stimuli, sf, indent=4)
 
-# test_metrics = {mod: [] for mod in models}
-if save_predictions:
-    test_predictions = []
-    # test_predictions = {mod: [] for mod in models}
-rows = []
-
-fieldnames = ['Trial', 'Model', 'Noise', 'Level', 'Loss', 'Accuracy']
-results_file = os.path.join(results_dir, f"{sim_set}.csv")
-with open(results_file, 'w') as results:
-    writer = csv.DictWriter(results, fieldnames=fieldnames)
-    writer.writeheader()
 
 # for trial in range(start_trial, n_seeds+1):
 # seed = start_seed * trial
@@ -548,6 +537,22 @@ if skip_test:
     tf.keras.backend.clear_session()
     print("=" * 80)
     sys.exit()
+
+
+# Create testing results files
+
+# test_metrics = {mod: [] for mod in models}
+if save_predictions:
+    test_predictions = []
+    # test_predictions = {mod: [] for mod in models}
+rows = []
+
+fieldnames = ['Trial', 'Model', 'Noise', 'Level', 'Loss', 'Accuracy']
+results_file = os.path.join(results_dir, f"{sim_set}.csv")
+with open(results_file, 'w') as results:
+    writer = csv.DictWriter(results, fieldnames=fieldnames)
+    writer.writeheader()
+
 
 # TODO: Finish or remove
 if args['train_with_noise']:
