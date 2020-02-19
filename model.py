@@ -395,17 +395,20 @@ model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['acc'])
 if verbose:
     model.summary()
 
-# model_output_dir = os.path.join(models_dir, f"{epochs:03d}_epochs")
 model_output_dir = os.path.join(models_dir, label, model_name)
 os.makedirs(model_output_dir, exist_ok=True)
-# full_path_to_model = os.path.join(model_output_dir, model_name)
 full_path_to_model = os.path.join(model_output_dir, f"{epochs:03d}_epochs")
 
 print(f"Trial: {trial}; seed={seed}")
 
+if use_initializer or "gabor" not in mod.lower():
+    model_data_file = f"{full_path_to_model}_weights.{extension}"
+else:  # Save whole model since metadata can not be saved as JSON
+    model_data_file = f"{full_path_to_model}.{extension}"
+
 if not train:
     print(f"Loading {model_name}...")
-    model.load_weights(full_path_to_model)  # .h5
+    model.load_weights(model_data_file)
     print(f"{model_name} loaded!")
 else:
     # Create Image Data Generators
@@ -434,17 +437,10 @@ else:
     gen_valid = data_gen.flow(x_test, y=y_test, batch_size=batch, 
                                 shuffle=True, seed=seed, save_to_dir=None)
 
-    # if "gabor" in mod.lower() and not use_initializer:
-    if use_initializer or "gabor" not in mod.lower():
-        model_data_file = f"{full_path_to_model}.{extension}"
-    else:
-        model_data_file = f"{full_path_to_model}_weights.{extension}"
-
-    # if os.path.exists(f"{full_path_to_model}.index") and not clean:
-    if os.path.exists(f"{full_path_to_model}.{extension}") and not clean:  # .index
-        # if os.path.exists(model_data_file) and not clean
+    print(f'Checking for {model_data_file}...')
+    if os.path.exists(model_data_file) and not clean:
         print(f"Found {mod} - skipping training...")
-        model.load_weights(f'{full_path_to_model}.{extension}')
+        model.load_weights(model_data_file)  # TODO: Check load_weights works when the whole model is saved
         print(f"{model_name} loaded!")
     else:
         print(f"Training {mod} for {epochs} epochs...")
