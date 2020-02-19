@@ -109,6 +109,8 @@ parser.add_argument('-t', '--train', action='store_true', # type=bool, default=F
                     help='Flag to train the model')
 parser.add_argument('--train_with_noise', action='store_true',
                     help='Flag to train the model with noise-like masks')
+parser.add_argument('--recalculate_statistics', action='store_true',
+                    help='Flag to recalculate normalisation statistics over the training set')
 parser.add_argument('--epochs', type=int, default=20, required=False,
                     help='Number of epochs to train model')
 parser.add_argument("-b", "--batch", type=int, default=64,
@@ -141,6 +143,7 @@ clean = args['clean']
 epochs = args['epochs']
 batch = args['batch']  # 64  # 32
 data_augmentation = args['data_augmentation']
+recalculate_statistics = args['recalculate_statistics']
 optimizer = args['optimizer']  # 'RMSprop'
 lr = args['lr']  # 0.0001  # 0.0005  # 0.0004  # 0.001  # 0.025
 decay = args['decay']  # 1e-6  #
@@ -248,6 +251,13 @@ x_test = x_test.astype(np.float16)
 print(f'x_train.shape: {x_train.shape}')
 print(f'Training: {x_train.shape[0]} in {y_train.shape[1]} categories')
 print(f'Testing: {x_test.shape[0]} in {y_test.shape[1]} categories')
+
+if recalculate_statistics or interpolate:
+    data_gen = ImageDataGenerator(featurewise_center=True, featurewise_std_normalization=True)
+    data_gen.fit(x_train)
+    mean = data_gen.mean
+    std = data_gen.std
+print(f'Training statistics: mean={mean}; std={std}')
 
 max_queue_size = 10
 workers = 12  # 4
