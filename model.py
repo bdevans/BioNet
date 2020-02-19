@@ -49,32 +49,6 @@ print(f"Channel ordering: {tf.keras.backend.image_data_format()}")  # TensorFlow
 gpus = tf.config.experimental.list_physical_devices('GPU')
 pprint.pprint(gpus)
 
-
-# Stimuli metadata
-luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma transform)
-data_set = 'CIFAR10'
-n_classes = 10
-# CIFAR10 image statistics calculated across the training set (after converting to greyscale)
-mean = 122.61930353949222
-std = 60.99213660091195
-colour = 'grayscale'  # 'rgb'
-contrast_level = 1  # Proportion of original contrast level for uniform and salt and pepper noise
-
-# Gabor parameters
-params = {# 'ksize': (127, 127), 
-          'ksize': (63, 63),
-          'gammas': [0.5], 
-#           'bs': np.linspace(0.4, 2.6, num=3),  # 0.4, 1, 1.8, 2.6
-#           'bs': np.linspace(0.4, 2.6, num=5),
-          'bs': np.linspace(1, 2.6, num=3).tolist(),
-#           'bs': np.linspace(1, 2.6, num=5),
-#           'sigmas': [4, 8, 16],  # , 32 
-          'sigmas': [8],
-          'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
-          'psis': [np.pi/2, 3*np.pi/2]}
-
-# params = None
-
 # warnings.filterwarnings("ignore", "Corrupt EXIF data", UserWarning)
 warnings.filterwarnings("ignore", "tensorflow:Model failed to serialize as JSON.", Warning)
 
@@ -156,6 +130,69 @@ mod = args["model"]
 trial = args['trial']
 label = args['label']
 assert 0 < trial
+
+# Stimuli metadata
+luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma transform)
+data_set = 'CIFAR10'
+n_classes = 10
+# CIFAR10 image statistics calculated across the training set (after converting to greyscale)
+mean = 122.61930353949222
+std = 60.99213660091195
+colour = 'grayscale'  # 'rgb'
+contrast_level = 1  # Proportion of original contrast level for uniform and salt and pepper noise
+
+# Gabor parameters
+params = {# 'ksize': (127, 127), 
+          'ksize': (63, 63),
+          'gammas': [0.5], 
+#           'bs': np.linspace(0.4, 2.6, num=3),  # 0.4, 1, 1.8, 2.6
+#           'bs': np.linspace(0.4, 2.6, num=5),
+          'bs': np.linspace(1, 2.6, num=3).tolist(),
+#           'bs': np.linspace(1, 2.6, num=5),
+#           'sigmas': [4, 8, 16],  # , 32 
+          'sigmas': [8],
+          'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
+          'psis': [np.pi/2, 3*np.pi/2]}
+
+# params = None
+
+max_queue_size = 10
+workers = 12  # 4
+use_multiprocessing = False
+verbose = False
+report = 'batch'  # 'epoch'
+# use_initializer = False
+extension = 'h5'  # For saving model/weights
+
+# Output paths
+models_dir = '/work/models'
+logs_dir = '/work/logs'
+results_dir = '/work/results'
+os.makedirs(models_dir, exist_ok=True)
+os.makedirs(results_dir, exist_ok=True)
+
+if save_images:
+    save_to_dir = '/work/results/img/'
+    if label:  # len(label) > 0:
+        save_to_dir = os.path.join(save_to_dir, label)
+    os.makedirs(save_to_dir, exist_ok=True)
+else:
+    save_to_dir = None
+    save_prefix = ''
+
+# Hardcode noise levels
+n_levels = 11
+noise_types = [("Uniform", uniform_noise, np.linspace(0, 0.5, n_levels)),
+               ("Salt and Pepper", salt_and_pepper_noise, np.linspace(0, 0.5, n_levels)),
+            #    ("High Pass", high_pass_filter, np.logspace(np.log10(5), np.log10(0.3), n_levels)),
+            #    ("High Pass", high_pass_filter, np.logspace(0, -1, n_levels)),
+               ("High Pass", high_pass_filter, np.logspace(2, 0, n_levels)),
+            #    ("Low Pass", low_pass_filter, np.logspace(0, np.log10(40), n_levels)),
+            #    ("Low Pass", low_pass_filter, np.logspace(-1, 1, n_levels)),
+               ("Low Pass", low_pass_filter, np.logspace(0, 2, n_levels)),
+               ("Contrast", adjust_contrast, np.logspace(0, -2, n_levels)),
+               ("Phase Scrambling", scramble_phases, np.linspace(0, 180, n_levels))]#,
+               #("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int))]
 
 if upscale:
     image_size = (224, 224)
@@ -258,44 +295,6 @@ if recalculate_statistics or interpolate:
     mean = data_gen.mean
     std = data_gen.std
 print(f'Training statistics: mean={mean}; std={std}')
-
-max_queue_size = 10
-workers = 12  # 4
-use_multiprocessing = False
-verbose = False
-report = 'batch'  # 'epoch'
-# use_initializer = False
-extension = 'h5'  # For saving model/weights
-
-# Output paths
-models_dir = '/work/models'
-logs_dir = '/work/logs'
-results_dir = '/work/results'
-os.makedirs(models_dir, exist_ok=True)
-os.makedirs(results_dir, exist_ok=True)
-
-if save_images:
-    save_to_dir = '/work/results/img/'
-    if label:  # len(label) > 0:
-        save_to_dir = os.path.join(save_to_dir, label)
-    os.makedirs(save_to_dir, exist_ok=True)
-else:
-    save_to_dir = None
-    save_prefix = ''
-
-# Hardcode noise levels
-n_levels = 11
-noise_types = [("Uniform", uniform_noise, np.linspace(0, 0.5, n_levels)),
-               ("Salt and Pepper", salt_and_pepper_noise, np.linspace(0, 0.5, n_levels)),
-            #    ("High Pass", high_pass_filter, np.logspace(np.log10(5), np.log10(0.3), n_levels)),
-            #    ("High Pass", high_pass_filter, np.logspace(0, -1, n_levels)),
-               ("High Pass", high_pass_filter, np.logspace(2, 0, n_levels)),
-            #    ("Low Pass", low_pass_filter, np.logspace(0, np.log10(40), n_levels)),
-            #    ("Low Pass", low_pass_filter, np.logspace(-1, 1, n_levels)),
-               ("Low Pass", low_pass_filter, np.logspace(0, 2, n_levels)),
-               ("Contrast", adjust_contrast, np.logspace(0, -2, n_levels)),
-               ("Phase Scrambling", scramble_phases, np.linspace(0, 180, n_levels))]#,
-               #("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int))]
 
 # Save metadata
 sim = {'classes': n_classes,
