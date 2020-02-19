@@ -119,6 +119,7 @@ def plot_history(history, chance=None, metrics=None, filename=None, figsize=(12,
     
     if include_other:
         plot_metrics(history, epochs, other_metrics, ax[row])
+        ax[row].set_ylabel("Metric")
         row += 1
 
     if filename:
@@ -186,7 +187,7 @@ def plot_gabor_filters(params, images=None, use_gpu=True, fontsize=20, space=0.1
         if not isinstance(images, list):
             assert isinstance(images, str) or isinstance(images, np.ndarray)
             images = [images]
-        
+
         n_images = len(images)
 
         for i, image in enumerate(images):
