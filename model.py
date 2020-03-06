@@ -40,7 +40,7 @@ from GaborNet.preparation import (as_perturbation_fn, as_greyscale_perturbation_
                                   uniform_noise, salt_and_pepper_noise, 
                                   high_pass_filter, low_pass_filter,
                                   adjust_contrast, scramble_phases,
-                                  rotate_image)
+                                  rotate_image, adjust_brightness, invert_luminance)
 
 # pprint.pprint(sys.path)
 print("\nTensorFlow:", tf.__version__)
@@ -200,8 +200,12 @@ noise_types = [("Uniform", uniform_noise, np.linspace(0, 1, n_levels)),
             #    ("Low Pass", low_pass_filter, np.logspace(-1, 1, n_levels)),
                ("Low Pass", low_pass_filter, np.logspace(0, 2, n_levels)),
                ("Contrast", adjust_contrast, np.logspace(0, -2, n_levels)),
-               ("Phase Scrambling", scramble_phases, np.linspace(0, 180, n_levels))]#,
+               ("Phase Scrambling", scramble_phases, np.linspace(0, 180, n_levels)),
                #("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int))]
+               ("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int)),
+               ("Darken", adjust_brightness, np.linspace(0, -1, n_levels)),
+               ("Brighten", adjust_brightness, np.linspace(0, 1, n_levels)),
+               ('Invert', invert_luminance, np.array([0, 1], dtype=int))]
 
 if upscale:
     image_size = (224, 224)
@@ -713,6 +717,8 @@ for noise, noise_fuction, levels in noise_types:
             perturbation_fn = functools.partial(noise_fuction, width=level)
         elif noise == "Rotation":
             perturbation_fn = functools.partial(noise_fuction, degrees=level)
+        elif noise in ["Darken", "Brighten", "Invert"]:
+            perturbation_fn = functools.partial(noise_fuction, level=level)
         else:
             print(f"Unknown noise type: {noise}!")
 

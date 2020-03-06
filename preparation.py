@@ -543,3 +543,22 @@ def rotate270(image):
     grey_channel = image
     new_channel = np.transpose(grey_channel[::-1,:], axes=(1,0))
     return np.dstack((new_channel,new_channel,new_channel))
+
+
+def adjust_brightness(image, level):
+    
+    new_image = image.copy()
+    new_image += level
+    new_image[new_image < 0] = 0
+    new_image[new_image > 1] = 1
+    return new_image
+
+
+def invert_luminance(image, level):
+    if level < 0.5:
+        return image
+
+    new_image = 1 - image
+    new_image[new_image < 0] = 0
+    new_image[new_image > 1] = 1
+    return new_image
