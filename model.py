@@ -30,10 +30,10 @@ from tensorflow.keras.applications import vgg16, vgg19, resnet_v2
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.datasets import cifar10
 
-sys.path.append('/work/generalisation-humans-DNNs/code')
-sys.path.append('/work/generalisation-humans-DNNs/code/accuracy_evaluation/')
-sys.path.append('/work/code/keras_lr_finder/')
-from mappings import HumanCategories
+# sys.path.append('/work/generalisation-humans-DNNs/code')
+# sys.path.append('/work/generalisation-humans-DNNs/code/accuracy_evaluation/')
+# sys.path.append('/work/code/keras_lr_finder/')
+# from mappings import HumanCategories
 from GaborNet import utils, plots
 from GaborNet.preparation import (as_perturbation_fn, as_greyscale_perturbation_fn, 
                                   cifar_wrapper, sanity_check,
