@@ -43,6 +43,8 @@ from GaborNet.preparation import (as_perturbation_fn, as_greyscale_perturbation_
                                   rotate_image, adjust_brightness, invert_luminance)
 
 # pprint.pprint(sys.path)
+print('+' * 80)  # Simulation metadata
+print(f'[{datetime.now().strftime("%Y/%m/%d %H:%M:%S")}] Starting simulation...')
 print("\nTensorFlow:", tf.__version__)
 print(f"Channel ordering: {tf.keras.backend.image_data_format()}")  # TensorFlow: Channels last order.
 # print("RGB/BGR")
@@ -189,6 +191,9 @@ else:
     save_to_dir = None
     save_prefix = ''
 
+# Process stimuli
+print('-' * 80)
+
 # Hardcode noise levels
 n_levels = 11
 noise_types = [("Uniform", uniform_noise, np.linspace(0, 1, n_levels)),
@@ -286,6 +291,7 @@ else:
     y_train = to_categorical(y_train, num_classes=n_classes, dtype='uint8')
     y_test = to_categorical(y_test, num_classes=n_classes, dtype='uint8')
 
+print('-' * 80)
 if upscale:
     if interpolate:
         print(f'Interpolating upscaled images with "{interpolation}"...')
@@ -376,6 +382,7 @@ if save_images:
 # seed = start_seed * trial
 # for m, mod in enumerate(models):
 
+print('-' * 80)  # Build/load model
 model_name = f'{mod}_{trial}'
 print(f"Creating {model_name}...")
 # Create the model
@@ -787,6 +794,7 @@ for noise, noise_fuction, levels in noise_types:
             writer.writerow(row)
         rows.append(row)
     print("-" * 80)
+print(f'[{datetime.now().strftime("%Y/%m/%d %H:%M:%S")}] Simulation finished!')
 print("=" * 80)
 # for m, metric in enumerate(model.metric_names):
 #     test_metrics[mod][metric]
