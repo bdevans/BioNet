@@ -228,13 +228,12 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                                              'config': layer.get_config()})(x)
         # print(x.shape)
 
+    model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
     if use_initializer:
         # Freeze weights of kernels
-        model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
+        # model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
         model.layers[replace_layer].trainable = False
-        return model
-
-    return Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
+    return model
 
 
 def substitute_output(model, n_classes=16):
