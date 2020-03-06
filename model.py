@@ -503,17 +503,32 @@ else:
 
         # scheduler_cb = tf.keras.callbacks.LearningRateScheduler(scheduler)
 
-        history = model.fit_generator(gen_train,
-                                    #   steps_per_epoch=int(np.ceil(x_train.shape[0] / float(batch))),
-                                      steps_per_epoch=gen_train.n//batch,
-                                      epochs=epochs,
-                                      validation_data=gen_valid,
-                                      validation_steps=gen_valid.n//batch,
-                                      shuffle=True,
-                                      callbacks=callbacks,
-                                      max_queue_size=max_queue_size,
-                                      use_multiprocessing=use_multiprocessing,
-                                      workers=workers)
+        # history = model.fit_generator(gen_train,
+        #                             #   steps_per_epoch=int(np.ceil(x_train.shape[0] / float(batch))),
+        #                               steps_per_epoch=gen_train.n//batch,
+        #                               epochs=epochs,
+        #                               validation_data=gen_valid,
+        #                               validation_steps=gen_valid.n//batch,
+        #                               shuffle=True,
+        #                               callbacks=callbacks,
+        #                               max_queue_size=max_queue_size,
+        #                               use_multiprocessing=use_multiprocessing,
+        #                               workers=workers)
+        
+        # if resume_training:
+        #     initial_epoch = ...
+        # else:
+        #     initial_epoch = 0
+        history = model.fit(gen_train,
+                            epochs=epochs,
+                            # steps_per_epoch=gen_train.n//batch,
+                            callbacks=callbacks,
+                            validation_data=gen_valid,
+                            # validation_steps=gen_valid.n//batch,
+                            shuffle=True,
+                            max_queue_size=max_queue_size,
+                            workers=workers,
+                            use_multiprocessing=use_multiprocessing)
 
         if use_initializer:
             model.save_weights(f"{full_path_to_model}_weights.{extension}")  # weights only
@@ -659,10 +674,16 @@ for noise, noise_fuction, levels in noise_types:
                                     save_to_dir=test_image_dir, save_prefix=save_prefix)
                                     # save_to_dir=save_to_dir, save_prefix=save_prefix)
 
-        metrics = model.evaluate_generator(gen_test, steps=gen_test.n//batch,
-                                            max_queue_size=max_queue_size,
-                                            use_multiprocessing=use_multiprocessing,
-                                            workers=workers)
+        # metrics = model.evaluate_generator(gen_test, steps=gen_test.n//batch,
+        #                                     max_queue_size=max_queue_size,
+        #                                     use_multiprocessing=use_multiprocessing,
+        #                                     workers=workers)
+        metrics = model.evaluate(gen_test, 
+                                # steps=gen_test.n//batch,
+                                verbose=0,
+                                max_queue_size=max_queue_size,
+                                workers=workers,
+                                use_multiprocessing=use_multiprocessing)
         # print(model.metrics_names)
         # print(f"{mod} metrics: {metrics}")
         t_elapsed = time.time() - t0
@@ -676,7 +697,13 @@ for noise, noise_fuction, levels in noise_types:
         # test_metrics[mod].append(metrics)
 
         if save_predictions:
-            predictions = model.predict_generator(gen_test, steps=gen_test.n//batch)
+            # predictions = model.predict_generator(gen_test, steps=gen_test.n//batch)
+            predictions = model.predict(gen_test, 
+                                        verbose=0,
+                                        # steps=gen_test.n//batch,
+                                        max_queue_size=max_queue_size,
+                                        workers=workers,
+                                        use_multiprocessing=use_multiprocessing)
             test_predictions.append(predictions)
             print(predictions.shape)
             # test_predictions[mod].append(predictions)
