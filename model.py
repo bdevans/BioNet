@@ -91,6 +91,10 @@ parser.add_argument("-b", "--batch", type=int, default=64,
 	                help="Size of mini-batches passed to the network")
 parser.add_argument('--image_path', type=str, default='',
                     help='Path to image files to load')
+parser.add_argument('--train_image_path', type=str, default='',
+                    help='Path to training image files to load')
+parser.add_argument('--test_image_path', type=str, default='',
+                    help='Path to testing image files to load')
 parser.add_argument('--data_augmentation', action='store_true', # type=bool, default=False,
                     help='Flag to train the model with data augmentation')
 parser.add_argument('-c', '--clean', action='store_true', default=False, required=False,
@@ -118,7 +122,9 @@ train = args['train']
 clean = args['clean']
 epochs = args['epochs']
 batch = args['batch']  # 64  # 32
-image_path = args['image_path']
+image_path = args['image_path']  # Deprecate?
+train_image_path = args['train_image_path']
+test_image_path = args['test_image_path']
 data_augmentation = args['data_augmentation']
 recalculate_statistics = args['recalculate_statistics']
 optimizer = args['optimizer']  # 'RMSprop'
@@ -217,6 +223,9 @@ if image_path and os.path.isdir(image_path):
 
     test_images, x_test, y_test = utils.load_images(os.path.join(image_path, 'test'))  # test_path
     assert n_classes == len(test_images)
+
+# if test_image_path and os.path.isdir(test_image_path):
+
 
 # TODO: Finish or remove
 if args['train_with_noise']:
@@ -562,6 +571,61 @@ if skip_test:
     tf.keras.backend.clear_session()
     print("=" * 80)
     sys.exit()
+
+
+if test_image_path and os.path.isdir(test_image_path):
+
+    print(f'Testing {model_name} with images from {test_image_path}...')
+    t0 = time.time()
+    rng = np.random.RandomState(seed=seed)
+    data_gen = ImageDataGenerator(preprocessing_function=None,
+                                featurewise_center=True, 
+                                featurewise_std_normalization=True)
+
+    # data_gen.fit(x_train)  # Set mean and std
+    data_gen.mean = mean
+    data_gen.std = std
+
+    gen_test = data_gen.flow_from_directory(test_image_path,
+                                            target_size=image_size,
+                                            color_mode=colour,
+                                            batch_size=batch,
+                                            shuffle=False, seed=seed,
+                                            interpolation=interpolation)
+
+    metrics = model.evaluate(gen_test, 
+                        # steps=gen_test.n//batch,
+                        verbose=1,
+                        max_queue_size=max_queue_size,
+                        workers=workers,
+                        use_multiprocessing=use_multiprocessing)
+
+    if train:
+        metrics_dict = {metric: score for metric, score in zip(model.metrics_names, metrics)}
+        print(f"{metrics_dict}")
+    else:
+        print(f"{metrics}")
+
+    if save_predictions:
+        predictions = model.predict(gen_test, 
+                                    verbose=1,
+                                    # steps=gen_test.n//batch,
+                                    max_queue_size=max_queue_size,
+                                    workers=workers,
+                                    use_multiprocessing=use_multiprocessing)
+        # print(predictions.shape)  # (n_images, n_classes)
+        predictions_file = os.path.join(results_dir, f'{model_name}_{os.path.basename(test_image_path)}_predictions.csv')
+        header = [f'p(class={c})' for c in n_classes]
+        np.savetxt(predictions_file, predictions, delimiter=',', header=','.join(header))
+    
+    t_elapsed = time.time() - t0
+    print(f'Testing finished! [{t_elapsed:.3f}s]')
+
+    # Clear GPU memory
+    tf.keras.backend.clear_session()
+    print("=" * 80)
+    sys.exit()
+    
 
 
 # Create testing results files
