@@ -206,14 +206,11 @@ n_levels = 11
 noise_types = [("Uniform", uniform_noise, np.linspace(0, 1, n_levels)),
                ("Salt and Pepper", salt_and_pepper_noise, np.linspace(0, 1, n_levels)),
             #    ("High Pass", high_pass_filter, np.logspace(np.log10(5), np.log10(0.3), n_levels)),
-            #    ("High Pass", high_pass_filter, np.logspace(0, -1, n_levels)),
                ("High Pass", high_pass_filter, np.logspace(2, 0, n_levels)),
             #    ("Low Pass", low_pass_filter, np.logspace(0, np.log10(40), n_levels)),
-            #    ("Low Pass", low_pass_filter, np.logspace(-1, 1, n_levels)),
                ("Low Pass", low_pass_filter, np.logspace(0, 2, n_levels)),
                ("Contrast", adjust_contrast, np.logspace(0, -2, n_levels)),
                ("Phase Scrambling", scramble_phases, np.linspace(0, 180, n_levels)),
-               #("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int))]
                ("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int)),
                ("Darken", adjust_brightness, np.linspace(0, -1, n_levels)),
                ("Brighten", adjust_brightness, np.linspace(0, 1, n_levels)),
@@ -613,11 +610,11 @@ if test_image_path and os.path.isdir(test_image_path):
                                             interpolation=interpolation)
 
     metrics = model.evaluate(gen_test, 
-                        # steps=gen_test.n//batch,
-                        verbose=1,
-                        max_queue_size=max_queue_size,
-                        workers=workers,
-                        use_multiprocessing=use_multiprocessing)
+                            # steps=gen_test.n//batch,
+                            verbose=1,
+                            max_queue_size=max_queue_size,
+                            workers=workers,
+                            use_multiprocessing=use_multiprocessing)
 
     if train:
         metrics_dict = {metric: score for metric, score in zip(model.metrics_names, metrics)}
@@ -636,7 +633,7 @@ if test_image_path and os.path.isdir(test_image_path):
         predictions_file = os.path.join(save_to_dir, 'predictions', f'{model_name}_{os.path.basename(test_image_path)}.csv')
         header = [f'p(class={c})' for c in range(n_classes)]
         np.savetxt(predictions_file, predictions, delimiter=',', header=','.join(header))
-    
+
     t_elapsed = time.time() - t0
     print(f'Testing finished! [{t_elapsed:.3f}s]')
 
@@ -644,7 +641,7 @@ if test_image_path and os.path.isdir(test_image_path):
     tf.keras.backend.clear_session()
     print("=" * 80)
     sys.exit()
-    
+
 
 
 # Create testing results files
