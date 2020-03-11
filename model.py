@@ -199,7 +199,7 @@ else:
     image_prefix = ''
 
 # Process stimuli
-print('-' * 80)
+print('=' * 80)
 
 # Hardcode noise levels
 n_levels = 11
@@ -298,7 +298,7 @@ else:
     y_train = to_categorical(y_train, num_classes=n_classes, dtype='uint8')
     y_test = to_categorical(y_test, num_classes=n_classes, dtype='uint8')
 
-print('-' * 80)
+# print('-' * 80)
 if upscale:
     if interpolate:
         print(f'Interpolating upscaled images with "{interpolation}"...')
@@ -391,8 +391,7 @@ if save_images:
 # seed = start_seed * trial
 # for m, mod in enumerate(models):
 
-print('-' * 80)  # Build/load model
-model_name = f'{mod}_{trial}'
+print('=' * 80)  # Build/load model
 print(f"Creating {model_name}...")
 # Create the model
 if mod == "GaborNet":  #  and params is not None:
