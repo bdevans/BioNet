@@ -326,7 +326,21 @@ print(f'x_train.shape: {x_train.shape}')
 print(f'Training: {x_train.shape[0]} in {y_train.shape[1]} categories')
 print(f'Testing: {x_test.shape[0]} in {y_test.shape[1]} categories')
 
-if recalculate_statistics or interpolate:
+if data_set == 'CIFAR10' and colour == 'grayscale':
+    if (interpolation == cv2.INTER_NEAREST) or not interpolate:
+        mean = 122.61930353949222
+        std = 60.99213660091195
+    elif interpolation == cv2.INTER_LANCZOS4:
+        mean = 122.6172103881836
+        std = 60.89457321166992
+    else:
+        print(f'Uncached interpolation method: {interpolation}')
+        recalculate_statistics = True
+else:
+    recalculate_statistics = True
+
+if recalculate_statistics:  # or interpolate:
+    print('Recalculating training image statistics...')
     data_gen = ImageDataGenerator(featurewise_center=True, featurewise_std_normalization=True)
     data_gen.fit(x_train)
     mean = np.squeeze(data_gen.mean).tolist()
