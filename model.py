@@ -799,6 +799,7 @@ for noise, noise_fuction, levels in noise_types:
             header = [f'p(class={c})' for c in range(n_classes)]
             np.savetxt(predictions_file, predictions, delimiter=',', header=','.join(header))
 
+        del gen_test
         row = {'Trial': trial, 'Model': mod, 'Noise': noise, 'Level': level,
                 'Loss': metrics[0], 'Accuracy': metrics[1]}
         with open(results_file, 'a') as results:
