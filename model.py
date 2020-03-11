@@ -180,16 +180,23 @@ models_dir = '/work/models'
 logs_dir = '/work/logs'
 results_dir = '/work/results'
 os.makedirs(models_dir, exist_ok=True)
-os.makedirs(results_dir, exist_ok=True)
+# os.makedirs(results_dir, exist_ok=True)
+
+# label is ignored if empty
+save_to_dir = os.path.join('/work/results/', label)
+os.makedirs(save_to_dir, exist_ok=True)
+if save_predictions:
+    os.makedirs(save_to_dir, 'predictions', exist_ok=True)
 
 if save_images:
-    save_to_dir = '/work/results/img/'
-    if label:  # len(label) > 0:
-        save_to_dir = os.path.join(save_to_dir, label)
-    os.makedirs(save_to_dir, exist_ok=True)
+    image_out_dir = os.path.join(save_to_dir, 'img')
+    # save_to_dir = '/work/results/img/'
+    # if label:  # len(label) > 0:
+    #     save_to_dir = os.path.join(save_to_dir, label)
+    os.makedirs(image_out_dir, exist_ok=True)
 else:
-    save_to_dir = None
-    save_prefix = ''
+    image_out_dir = None
+    image_prefix = ''
 
 # Process stimuli
 print('-' * 80)
@@ -348,20 +355,22 @@ sim = {'classes': n_classes,
        'colour': colour,
        'luminance_rgb_weights': luminance_weights.tolist(),
        'contrast_level': contrast_level,
-       'image_out_dir': save_to_dir,
+       'image_out_dir': image_out_dir,
        'models_dir': models_dir,
        'results_dir': results_dir,
        'use_initializer': use_initializer,
        'filter_params': params,
       }
 
-# sim_set = f"test_{datetime.now().strftime('%Y%m%d')}"
-if label:  # len(label) > 0:
-    sim_set = f"{mod}_{label}_t{trial}_e{epochs}_s{seed}"
-else:
-    sim_set = f"{mod}_t{trial}_e{epochs}_s{seed}"
+model_name = f'{mod}_{trial}'
+# # sim_set = f"test_{datetime.now().strftime('%Y%m%d')}"
+# if label:  # len(label) > 0:
+#     sim_set = f"{mod}_{label}_t{trial}_e{epochs}_s{seed}"
+# else:
+#     sim_set = f"{mod}_t{trial}_e{epochs}_s{seed}"
+sim_set = f"{model_name}_s{seed}"
 sim_file = f"{sim_set}.json"
-with open(os.path.join(results_dir, sim_file), "w") as sf:
+with open(os.path.join(save_to_dir, sim_file), "w") as sf:
     json.dump(sim, sf, indent=4)
 
 if save_images:
@@ -374,7 +383,7 @@ if save_images:
         'luminance_rgb_weights': luminance_weights.tolist(),
         'contrast_level': contrast_level,
         }
-    with open(os.path.join(save_to_dir, 'stimuli.json'), "w") as sf:
+    with open(os.path.join(image_out_dir, 'stimuli.json'), "w") as sf:
         json.dump(stimuli, sf, indent=4)
 
 
@@ -625,8 +634,8 @@ if test_image_path and os.path.isdir(test_image_path):
                                     workers=workers,
                                     use_multiprocessing=use_multiprocessing)
         # print(predictions.shape)  # (n_images, n_classes)
-        predictions_file = os.path.join(results_dir, f'{model_name}_{os.path.basename(test_image_path)}_predictions.csv')
-        header = [f'p(class={c})' for c in n_classes]
+        predictions_file = os.path.join(save_to_dir, 'predictions', f'{model_name}_{os.path.basename(test_image_path)}.csv')
+        header = [f'p(class={c})' for c in range(n_classes)]
         np.savetxt(predictions_file, predictions, delimiter=',', header=','.join(header))
     
     t_elapsed = time.time() - t0
@@ -642,13 +651,13 @@ if test_image_path and os.path.isdir(test_image_path):
 # Create testing results files
 
 # test_metrics = {mod: [] for mod in models}
-if save_predictions:
-    test_predictions = []
-    # test_predictions = {mod: [] for mod in models}
-rows = []
+# if save_predictions:
+#     test_predictions = []
+#     # test_predictions = {mod: [] for mod in models}
+# rows = []
 
 fieldnames = ['Trial', 'Model', 'Noise', 'Level', 'Loss', 'Accuracy']
-results_file = os.path.join(results_dir, f"{sim_set}.csv")
+results_file = os.path.join(save_to_dir, f"{sim_set}.csv")
 with open(results_file, 'w') as results:
     writer = csv.DictWriter(results, fieldnames=fieldnames)
     writer.writeheader()
@@ -739,16 +748,16 @@ for noise, noise_fuction, levels in noise_types:
         data_gen.std = std
 
         if save_images:
-            # save_prefix = f"{noise.replace(' ', '_').lower()}"
-            test_image_dir = os.path.join(save_to_dir, noise.replace(' ', '_').lower())
+            # image_prefix = f"{noise.replace(' ', '_').lower()}"
+            test_image_dir = os.path.join(image_out_dir, noise.replace(' ', '_').lower())
             os.makedirs(test_image_dir, exist_ok=True)
-            save_prefix = f"L{l_ind+1:02d}"
+            image_prefix = f"L{l_ind+1:02d}"
         else:
             test_image_dir = None
 
         gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
                                     shuffle=False, seed=seed,  # True
-                                    save_to_dir=test_image_dir, save_prefix=save_prefix)
+                                    save_to_dir=test_image_dir, save_prefix=image_prefix)
                                     # save_to_dir=save_to_dir, save_prefix=save_prefix)
 
         # metrics = model.evaluate_generator(gen_test, steps=gen_test.n//batch,
@@ -781,18 +790,22 @@ for noise, noise_fuction, levels in noise_types:
                                         max_queue_size=max_queue_size,
                                         workers=workers,
                                         use_multiprocessing=use_multiprocessing)
-            test_predictions.append(predictions)
+            # test_predictions.append(predictions)
             print(predictions.shape)
             # test_predictions[mod].append(predictions)
             # TODO
             # with open(predictions_file, 'a') as pred_file:
             #     pred_writer = csv.
+            predictions_file = os.path.join(save_to_dir, 'predictions', f'{model_name}_{os.path.basename(test_image_path)}.csv')
+            header = [f'p(class={c})' for c in range(n_classes)]
+            np.savetxt(predictions_file, predictions, delimiter=',', header=','.join(header))
+
         row = {'Trial': trial, 'Model': mod, 'Noise': noise, 'Level': level,
                 'Loss': metrics[0], 'Accuracy': metrics[1]}
         with open(results_file, 'a') as results:
             writer = csv.DictWriter(results, fieldnames=fieldnames)
             writer.writerow(row)
-        rows.append(row)
+        # rows.append(row)
     print("-" * 80)
 print(f'[{datetime.now().strftime("%Y/%m/%d %H:%M:%S")}] Simulation finished!')
 print("=" * 80)
