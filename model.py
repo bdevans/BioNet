@@ -752,7 +752,8 @@ for noise, noise_fuction, levels in noise_types:
         # TODO: Check this is still deterministic when parallelised
         data_gen = ImageDataGenerator(preprocessing_function=prep_image,
                                         featurewise_center=True, 
-                                        featurewise_std_normalization=True)
+                                        featurewise_std_normalization=True,
+                                        dtype='float16')
         # data_gen.fit(x_train)  # Set mean and std
         data_gen.mean = mean
         data_gen.std = std
