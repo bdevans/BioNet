@@ -771,16 +771,16 @@ for noise, noise_fuction, levels in noise_types:
                                     save_to_dir=test_image_dir, save_prefix=image_prefix)
                                     # save_to_dir=save_to_dir, save_prefix=save_prefix)
 
-        # metrics = model.evaluate_generator(gen_test, steps=gen_test.n//batch,
-        #                                     max_queue_size=max_queue_size,
-        #                                     use_multiprocessing=use_multiprocessing,
-        #                                     workers=workers)
-        metrics = model.evaluate(gen_test, 
-                                # steps=gen_test.n//batch,
-                                verbose=0,
-                                max_queue_size=max_queue_size,
-                                workers=workers,
-                                use_multiprocessing=use_multiprocessing)
+        metrics = model.evaluate_generator(gen_test, #steps=gen_test.n//batch,
+                                            max_queue_size=max_queue_size,
+                                            use_multiprocessing=use_multiprocessing,
+                                            workers=workers)
+        # metrics = model.evaluate(gen_test, 
+        #                         # steps=gen_test.n//batch,
+        #                         verbose=0,
+        #                         max_queue_size=max_queue_size,
+        #                         workers=workers,
+        #                         use_multiprocessing=use_multiprocessing)
         # print(model.metrics_names)
         # print(f"{mod} metrics: {metrics}")
         t_elapsed = time.time() - t0
