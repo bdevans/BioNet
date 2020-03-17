@@ -186,7 +186,7 @@ os.makedirs(models_dir, exist_ok=True)
 save_to_dir = os.path.join('/work/results/', label)
 os.makedirs(save_to_dir, exist_ok=True)
 if save_predictions:
-    os.makedirs(save_to_dir, 'predictions', exist_ok=True)
+    os.makedirs(os.path.join(save_to_dir, 'predictions'), exist_ok=True)
 
 if save_images:
     image_out_dir = os.path.join(save_to_dir, 'img')
