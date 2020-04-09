@@ -300,7 +300,7 @@ def is_in_bounds(mat, low, high):
     return np.all(np.logical_and(mat >= 0, mat <= 1))
 
 
-def high_pass_filter(image, std):
+def high_pass_filter(image, std, bg_grey=0.4423):
     """Apply a Gaussian high pass filter to a greyscale converted image.
     by calculating Highpass(image) = image - Lowpass(image).
     
@@ -309,7 +309,7 @@ def high_pass_filter(image, std):
     - std: a scalar providing the Gaussian low-pass filter's standard deviation"""
 
     # set this to mean pixel value over all images
-    bg_grey = 0.4423
+#     bg_grey = 0.4423
 
     # convert image to greyscale and define variable prepare new image
     # image = rgb2grey(image)
@@ -332,7 +332,7 @@ def high_pass_filter(image, std):
     return np.dstack((new_image,new_image,new_image))
 
 
-def low_pass_filter(image, std):
+def low_pass_filter(image, std, bg_grey=0.4423):
     """Aplly a Gaussian low-pass filter to an image.
     
     parameters:
@@ -340,7 +340,7 @@ def low_pass_filter(image, std):
     - std: a scalar providing the Gaussian low-pass filter's standard deviation
     """
     # set this to mean pixel value over all images
-    bg_grey = 0.4423
+#     bg_grey = 0.4423
 
     # covert image to greyscale and define variable prepare new image
     # image = rgb2grey(image)
