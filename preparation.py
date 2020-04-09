@@ -163,7 +163,7 @@ def cifar_wrapper(f):
         # Replicate greyscale values for all three channels
         if perturbed.ndim == 2:
             perturbed = perturbed[..., np.newaxis]
-        assert image.shape == perturbed.shape, f"{image.shape} --> {perturbed.shape}"
+        assert image.shape == perturbed.shape, f"Original: {image.shape} --> Perturbed: {perturbed.shape}"
         if perturbed.dtype == np.float64:
             perturbed = perturbed.astype(np.float32)
         # perturbed = perturbed.astype(np.float16)
