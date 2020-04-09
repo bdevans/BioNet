@@ -1,3 +1,7 @@
+"""
+This module contains wrappers and perturbation functions for use with Keras ImageDataGenerator objects.
+"""
+
 import functools
 
 import numpy as np
@@ -130,6 +134,35 @@ def as_greyscale_perturbation_fn(f):
 
 # Build a perturbed stimulus generator
 def cifar_wrapper(f):
+    """
+    Wrapper for perturbation functions when used with upscaled CIFAR10 images.
+    
+    First rescale the images to the range [0, 1], apply the perturbation, 
+    ensure the result is rank 3 (even with a singleton channels dimension),
+    set to float32 then rescale to teh range [0, 255].
+    
+    Args:
+        f (function): The perturbation function manipulating images in the range [0, 1].
+    
+    Returns:
+        function: The wrapped perturbation function.
+    
+    Examples:
+        >>> cifar_wrapper(uniform_noise)
+        <function GaborNet.preparation.uniform_noise(image, width, contrast_level, rng)>
+    
+        Note: To set noise levels, it a partial function must first be created to pass to this wrapper:
+        >>> import functools
+        >>> functools.partial(uniform_noise, width=3, 
+        >>>                   contrast_level=0.8, rng=42)
+        functools.partial(<function uniform_noise at 0x7f3876e5a200>, width=3, contrast_level=0.8, rng=42)
+    
+        >>> import functools
+        >>> f = functools.partial(uniform_noise, width=3, 
+        >>>                       contrast_level=0.8, rng=42)
+        >>> cifar_wrapper(f)
+        <function GaborNet.preparation.cifar_wrapper.<locals>.wrapper(image, *, width=3, contrast_level=0.8, rng=42)>
+    """
     @functools.wraps(f)
     def wrapper(image):
         # TODO: Centre and crop image by monkey patching
