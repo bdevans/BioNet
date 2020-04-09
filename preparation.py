@@ -182,7 +182,6 @@ def cifar_wrapper(f):
         # Convert to greyscale - handled by perturbations in image_manipulation.py
         # image = rgb2grey(image)
 
-        # TODO: Move out?
         # Scale to [0, 1]
         image /= 255
 
@@ -382,7 +381,9 @@ def low_pass_filter(image, std, bg_grey=0.4423):
     # apply Gaussian low-pass filter
     # new_image = gaussian_filter(image[:, :, 0], std, mode='constant', cval=bg_grey)
     new_image = gaussian_filter(image, std, mode='constant', cval=bg_grey)
-    new_image = new_image#[..., np.newaxis]
+    # new_image = new_image[..., np.newaxis]
+
+    # gaussian_filter(image, std, output=new_image, mode='constant', cval=bg_grey)
 
     # crop too small and too large values
     new_image[new_image < 0] = 0
