@@ -36,7 +36,8 @@ from tensorflow.keras.datasets import cifar10
 # from mappings import HumanCategories
 from GaborNet import utils, plots
 from GaborNet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_fn, 
-                                  cifar_wrapper, get_noise_preprocessor, sanity_check,
+                                  get_perturbations,
+                                  cifar_wrapper, get_noise_preprocessor, 
                                   uniform_noise, salt_and_pepper_noise, 
                                   high_pass_filter, low_pass_filter,
                                   adjust_contrast, scramble_phases,
@@ -237,18 +238,19 @@ print('=' * 80)
 
 # Hardcode noise levels
 n_levels = 11
-noise_types = [("Uniform", uniform_noise, np.linspace(0, 1, n_levels)),
-               ("Salt and Pepper", salt_and_pepper_noise, np.linspace(0, 1, n_levels)),
-            #    ("High Pass", high_pass_filter, np.logspace(np.log10(5), np.log10(0.3), n_levels)),
-               ("High Pass", high_pass_filter, np.logspace(2, 0, n_levels)),
-            #    ("Low Pass", low_pass_filter, np.logspace(0, np.log10(40), n_levels)),
-               ("Low Pass", low_pass_filter, np.logspace(0, 2, n_levels)),
-               ("Contrast", adjust_contrast, np.logspace(0, -2, n_levels)),
-               ("Phase Scrambling", scramble_phases, np.linspace(0, 180, n_levels)),
-               ("Darken", adjust_brightness, np.linspace(0, -1, n_levels)),
-               ("Brighten", adjust_brightness, np.linspace(0, 1, n_levels)),
-               ("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int)),
-               ('Invert', invert_luminance, np.array([0, 1], dtype=int))]
+noise_types = get_perturbations(n_levels=n_levels)
+# noise_types = [("Uniform", uniform_noise, np.linspace(0, 1, n_levels)),
+#                ("Salt and Pepper", salt_and_pepper_noise, np.linspace(0, 1, n_levels)),
+#             #    ("High Pass", high_pass_filter, np.logspace(np.log10(5), np.log10(0.3), n_levels)),
+#                ("High Pass", high_pass_filter, np.logspace(2, 0, n_levels)),
+#             #    ("Low Pass", low_pass_filter, np.logspace(0, np.log10(40), n_levels)),
+#                ("Low Pass", low_pass_filter, np.logspace(0, 2, n_levels)),
+#                ("Contrast", adjust_contrast, np.logspace(0, -2, n_levels)),
+#                ("Phase Scrambling", scramble_phases, np.linspace(0, 180, n_levels)),
+#                ("Darken", adjust_brightness, np.linspace(0, -1, n_levels)),
+#                ("Brighten", adjust_brightness, np.linspace(0, 1, n_levels)),
+#                ("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int)),
+#                ('Invert', invert_luminance, np.array([0, 1], dtype=int))]
 
 # Process stimuli
 if upscale:
