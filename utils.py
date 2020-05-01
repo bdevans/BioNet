@@ -148,7 +148,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
     assert 0 < replace_layer < len(model.layers)
 
     # Parse parameters
-    if params is not None:
+    if params is not None and filter_type.capitalize() == 'Gabor':
         assert 'bs' in params
         if 'sigmas' not in params:
             assert 'lambdas' in params
@@ -194,9 +194,10 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
         elif ind == replace_layer and params is not None:  # Replace convolutional layer
             print(f"Replacing layer {ind}: '{layer.name}' --> '{filter_type}_conv'...")
             if use_initializer:
+                if filter_type.lower() == 'gabor':
                 n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
                                               * len(params['gammas']) * len(params['psis'])
-                
+                    kernel_initializer = GaborInitializer(params)
                 # When using this layer as the first layer in a model, provide the keyword argument 
                 # input_shape (tuple of integers, does not include the batch axis), 
                 # e.g. input_shape=(128, 128, 3) for 128x128 RGB pictures in data_format="channels_last".

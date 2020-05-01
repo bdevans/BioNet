@@ -58,7 +58,11 @@ warnings.filterwarnings("ignore", "tensorflow:Model failed to serialize as JSON.
 # Instantiate the parser
 parser = argparse.ArgumentParser()
 
-parser.add_argument('-m', '--model', type=str, default='GaborNet',
+# parser.add_argument('--model', type=str, default='GaborNet',
+#                     help='Name of model to use')
+parser.add_argument('--convolution', type=str, default='Original',
+                    help='Name of convolutional filter to use')
+parser.add_argument('--base', type=str, default='VGG16',
                     help='Name of model to use')
 parser.add_argument('-a', '--architecture', type=str, default='model.json',
                     help='Parameter file (JSON) to load')
@@ -118,6 +122,8 @@ gpus = tf.config.experimental.list_physical_devices('GPU')
 assert 0 <= args["gpu"] < len(gpus)
 tf.config.experimental.set_visible_devices(gpus[args["gpu"]], 'GPU')
 
+convolution = args['convolution']
+base = args['base']
 upscale = args['upscale']
 interpolate = args['interpolate']
 train = args['train']
@@ -137,7 +143,8 @@ skip_test = args['skip_test']
 save_images = args['save_images']
 save_predictions = args['save_predictions']
 seed = args['seed']  # 420420420
-mod = args["model"]
+# mod = args["model"]
+base = args['base']
 trial = args['trial']
 label = args['label']
 assert 0 < trial
@@ -152,6 +159,9 @@ std = 60.99213660091195
 colour = 'grayscale'  # 'rgb'
 contrast_level = 1  # Proportion of original contrast level for uniform and salt and pepper noise
 
+weights = None
+
+if convolution.capitalize() == 'Gabor':
 # Gabor parameters
 params = {# 'ksize': (127, 127), 
           'ksize': (63, 63),
@@ -164,8 +174,22 @@ params = {# 'ksize': (127, 127),
           'sigmas': [8],
           'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
           'psis': [np.pi/2, 3*np.pi/2]}
+    mod = f'Gabor_{base}'
+elif convolution.capitalize() == 'Low-pass':
+    params = {'ksize': (63, 63),
+              'sigmas': [8]}
+    mod = f'Low-pass_{base}'
+elif convolution.capitalize() == 'Original':
+    params = None
+    mod = base
+    if args['pretrain']:
+        weights = 'imagenet'
+        mod = f'{base}_ImageNet'
+else:
+    warnings.warn(f'Unknown convolution type: {convolution}!')
+    sys.exit()
 
-# params = None
+filter_params = params
 
 max_queue_size = 10
 workers = 12  # 4
@@ -358,6 +382,9 @@ sim = {'classes': n_classes,
        'seed': seed,
        'trial': trial,
        'model': mod,
+       'convolution': convolution,
+       'base': base,
+       'weights': weights,
        'label': label,
        'noise': {noise: levels.tolist() for noise, _, levels in noise_types},
        'image_mean': mean,
@@ -373,6 +400,7 @@ sim = {'classes': n_classes,
        'filter_params': params,
       }
 
+# TODO: Replace with f'{conv}_{base}_{trial}'
 model_name = f'{mod}_{trial}'
 # # sim_set = f"test_{datetime.now().strftime('%Y%m%d')}"
 # if label:  # len(label) > 0:
@@ -405,19 +433,22 @@ if save_images:
 print('=' * 80)  # Build/load model
 print(f"Creating {model_name}...")
 # Create the model
-if mod == "GaborNet":  #  and params is not None:
-    weights = None
-    filter_params = params
-elif mod.endswith("ImageNet"):
-    weights = 'imagenet'
-    filter_params = None
-else:
-    weights = None
-    filter_params = None
-model = tf.keras.applications.vgg16.VGG16(weights=weights, 
+
+model_base = {'vgg16': tf.keras.applications.vgg16.VGG16, 
+              'vgg19': tf.keras.applications.vgg19.VGG19,
+              'resnet': tf.keras.applications.resnet_v2.ResNet50V2,
+              'mobilenet': tf.keras.applications.mobilenet_v2.MobileNetV2, # MobileNetV2
+              'inception': tf.keras.applications.inception_v3.InceptionV3}
+# ResNet50, Inception V3, and Xception
+
+model = model_base[base.lower().replace('-', '')](weights=weights, 
                                             include_top=True, 
                                             classes=1000)
+# model = tf.keras.applications.vgg16.VGG16(weights=weights, 
+#                                             include_top=True, 
+#                                             classes=1000)
 model = utils.substitute_layer(model, filter_params, 
+                               filter_type=convolution,
                                 input_shape=image_size, 
                                 colour_input=colour, 
                                 use_initializer=use_initializer)
@@ -440,10 +471,13 @@ full_path_to_model = os.path.join(model_output_dir, f"{epochs:03d}_epochs")
 
 print(f"Trial: {trial}; seed={seed}")
 
-if use_initializer or "gabor" not in mod.lower():
+# if use_initializer or "gabor" not in mod.lower():
+# if use_initializer and not ("gabor" in mod.lower() or "low-pass" in mod.lower()):
+#     model_data_file = f"{full_path_to_model}_weights.{extension}"
+# else:  # Save whole model since metadata can not be saved as JSON
+#     model_data_file = f"{full_path_to_model}.{extension}"
+
     model_data_file = f"{full_path_to_model}_weights.{extension}"
-else:  # Save whole model since metadata can not be saved as JSON
-    model_data_file = f"{full_path_to_model}.{extension}"
 
 if not train:
     print(f"Loading {model_name}...")
@@ -658,19 +692,8 @@ if test_image_path and os.path.isdir(test_image_path):
 
 
 
-# Create testing results files
 
-# test_metrics = {mod: [] for mod in models}
-# if save_predictions:
-#     test_predictions = []
-#     # test_predictions = {mod: [] for mod in models}
-# rows = []
 
-fieldnames = ['Trial', 'Model', 'Noise', 'Level', 'Loss', 'Accuracy']
-results_file = os.path.join(save_to_dir, f"{sim_set}.csv")
-with open(results_file, 'w') as results:
-    writer = csv.DictWriter(results, fieldnames=fieldnames)
-    writer.writeheader()
 
 
 # TODO: Finish or remove
@@ -684,9 +707,11 @@ if args['train_with_noise']:
     with open(os.path.join(results_dir, sim_file), "w") as sf:
         json.dump(sim, sf, indent=4)
 
-    rows = []
+    # rows = []
 
-    fieldnames = ['Trial', 'Model', 'Noise', 'Level', 'Loss', 'Accuracy']
+    fieldnames = ['Trial', 'Model', 'Convolution', 'Base', 'Weights', 
+                  'Noise', 'Level', 'Loss', 'Accuracy']
+
     results_file = os.path.join(results_dir, f"{sim_set}.csv")
     with open(results_file, 'w') as results:
         writer = csv.DictWriter(results, fieldnames=fieldnames)
@@ -698,7 +723,9 @@ if args['train_with_noise']:
 
         metrics = model.evaluate(x=x_test, y=y_test, batch_size=batch)
 
-        row = {'Trial': trial, 'Model': mod, 'Noise': noise, 'Level': level,
+        row = {'Trial': trial, 'Model': mod, 
+               'Convolution': convolution, 'Base': base, 'Weights': weights,
+               'Noise': noise, 'Level': level,
                 'Loss': metrics[0], 'Accuracy': metrics[1]}
         with open(results_file, 'a') as results:
             writer = csv.DictWriter(results, fieldnames=fieldnames)
@@ -711,6 +738,22 @@ if args['train_with_noise']:
     # if save_loss:
     #     with open(os.path.join(save_dir, f'{model_name}_CONDVALLOSS.json'), "w") as jf:
     #         json.dump(cond_loss, jf)
+
+
+# Create testing results files
+
+# test_metrics = {mod: [] for mod in models}
+# if save_predictions:
+#     test_predictions = []
+#     # test_predictions = {mod: [] for mod in models}
+# rows = []
+
+fieldnames = ['Trial', 'Model', 'Convolution', 'Base', 'Weights',
+              'Noise', 'Level', 'Loss', 'Accuracy']
+results_file = os.path.join(save_to_dir, f"perturb_{sim_set}.csv")
+with open(results_file, 'w') as results:
+    writer = csv.DictWriter(results, fieldnames=fieldnames)
+    writer.writeheader()
 
 # TODO: Optionally test (and generate through the ImageDataGenerator) unperturbed images (L0)
 for noise, noise_fuction, levels in noise_types:
@@ -812,7 +855,9 @@ for noise, noise_fuction, levels in noise_types:
             np.savetxt(predictions_file, predictions, delimiter=',', header=','.join(header))
 
         del gen_test
-        row = {'Trial': trial, 'Model': mod, 'Noise': noise, 'Level': level,
+        row = {'Trial': trial, 'Model': mod, 
+               'Convolution': convolution, 'Base': base, 'Weights': weights,
+               'Noise': noise, 'Level': level,
                 'Loss': metrics[0], 'Accuracy': metrics[1]}
         with open(results_file, 'a') as results:
             writer = csv.DictWriter(results, fieldnames=fieldnames)
