@@ -38,10 +38,12 @@ from GaborNet import utils, plots
 from GaborNet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_fn, 
                                   get_perturbations,
                                   cifar_wrapper, get_noise_preprocessor, 
+                                  sanity_check,
                                   uniform_noise, salt_and_pepper_noise, 
                                   high_pass_filter, low_pass_filter,
                                   adjust_contrast, scramble_phases,
-                                  rotate_image, adjust_brightness, invert_luminance)
+                                  rotate_image, adjust_brightness, 
+                                  invert_luminance)
 
 # pprint.pprint(sys.path)
 print('+' * 80)  # Simulation metadata
