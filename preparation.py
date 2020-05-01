@@ -131,6 +131,32 @@ def as_greyscale_perturbation_fn(f):
     return wrapper
 
 
+def get_noise_preprocessor(name, function=None, level=None, contrast_level=1,
+                           rng=None, rescale=1/255):
+    
+    if name == "Uniform":
+        perturbation_fn = functools.partial(function, width=level, 
+                                            contrast_level=contrast_level, rng=rng)
+    elif name == "Salt and Pepper":
+        perturbation_fn = functools.partial(function, p=level, 
+                                            contrast_level=contrast_level, rng=rng)
+    elif name in ["High Pass", "Low Pass"]:
+        perturbation_fn = functools.partial(function, std=level, bg_grey=mean/255)
+    elif name == "Contrast":
+        perturbation_fn = functools.partial(function, contrast_level=level)    
+    elif name == "Phase Scrambling":
+        perturbation_fn = functools.partial(function, width=level)
+    elif name == "Rotation":
+        perturbation_fn = functools.partial(function, degrees=level)
+    elif name in ["Darken", "Brighten", "Invert"]:
+        perturbation_fn = functools.partial(function, level=level)
+    elif name == "None":  # or function is None:
+        perturbation_fn = sanity_check
+    else:
+        print(f"Unknown noise type: {name}!")
+
+    return cifar_wrapper(perturbation_fn, rescale=rescale)
+
 
 # Build a perturbed stimulus generator
 def cifar_wrapper(f, rescale=1/255):
@@ -601,30 +627,3 @@ def invert_luminance(image, level):
     new_image[new_image < 0] = 0
     new_image[new_image > 1] = 1
     return new_image
-
-
-def get_noise_preprocessor(name, function=None, level=None, contrast_level=1,
-                           rng=None, rescale=1/255):
-    
-    if name == "Uniform":
-        perturbation_fn = functools.partial(function, width=level, 
-                                            contrast_level=contrast_level, rng=rng)
-    elif name == "Salt and Pepper":
-        perturbation_fn = functools.partial(function, p=level, 
-                                            contrast_level=contrast_level, rng=rng)
-    elif name in ["High Pass", "Low Pass"]:
-        perturbation_fn = functools.partial(function, std=level, bg_grey=mean/255)
-    elif name == "Contrast":
-        perturbation_fn = functools.partial(function, contrast_level=level)    
-    elif name == "Phase Scrambling":
-        perturbation_fn = functools.partial(function, width=level)
-    elif name == "Rotation":
-        perturbation_fn = functools.partial(function, degrees=level)
-    elif name in ["Darken", "Brighten", "Invert"]:
-        perturbation_fn = functools.partial(function, level=level)
-    elif name == "None":  # or function is None:
-        perturbation_fn = sanity_check
-    else:
-        print(f"Unknown noise type: {name}!")
-
-    return cifar_wrapper(perturbation_fn, rescale=rescale)
