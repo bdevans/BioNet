@@ -446,7 +446,7 @@ if save_images:
 # for m, mod in enumerate(models):
 
 print('=' * 80)  # Build/load model
-print(f"Creating {model_name}...")
+print(f"Creating {model_name}...", flush=True)
 # Create the model
 
 model_base = {'vgg16': tf.keras.applications.vgg16.VGG16, 
@@ -484,7 +484,7 @@ model_output_dir = os.path.join(models_dir, label, model_name)
 os.makedirs(model_output_dir, exist_ok=True)
 full_path_to_model = os.path.join(model_output_dir, f"{epochs:03d}_epochs")
 
-print(f"Trial: {trial}; seed={seed}")
+print(f"Trial: {trial}; seed={seed}", flush=True)
 
 # if use_initializer or "gabor" not in mod.lower():
 # if use_initializer and not ("gabor" in mod.lower() or "low-pass" in mod.lower()):
@@ -495,9 +495,9 @@ print(f"Trial: {trial}; seed={seed}")
     model_data_file = f"{full_path_to_model}_weights.{extension}"
 
 if not train:
-    print(f"Loading {model_name}...")
+    print(f"Loading {model_name}...", flush=True)
     model.load_weights(model_data_file)
-    print(f"{model_name} loaded!")
+    print(f"{model_name} loaded!", flush=True)
 else:
     # Create Image Data Generators
     if data_augmentation:
@@ -525,13 +525,13 @@ else:
     gen_valid = data_gen.flow(x_test, y=y_test, batch_size=batch, 
                                 shuffle=True, seed=seed, save_to_dir=None)
 
-    print(f'Checking for {model_data_file}...')
+    print(f'Checking for {model_data_file}...', flush=True)
     if os.path.exists(model_data_file) and not clean:
-        print(f"Found {mod} - skipping training...")
+        print(f"Found {mod} - skipping training...", flush=True)
         model.load_weights(model_data_file)  # TODO: Check load_weights works when the whole model is saved
-        print(f"{model_name} loaded!")
+        print(f"{model_name} loaded!", flush=True)
     else:
-        print(f"Training {mod} for {epochs} epochs...")
+        print(f"Training {mod} for {epochs} epochs...", flush=True)
         t0 = time.time()
 
         callbacks = []
@@ -641,11 +641,11 @@ else:
         #                     filename=f'{mod}_train_CIFAR10_{trial}.png')
         # plots.plot_loss(history, filename=f'{mod}_train_CIFAR10_loss_{trial}.png')
         t_elapsed = time.time() - t0
-        print(f"{model_name} training finished [{str(timedelta(seconds=t_elapsed))}]!")
+        print(f"{model_name} training finished [{str(timedelta(seconds=t_elapsed))}]!", flush=True)
 print("=" * 80)
 
 if skip_test:
-    print("Skipping testing.")
+    print("Skipping testing.", flush=True)
     # Clear GPU memory
     tf.keras.backend.clear_session()
     print("=" * 80)
