@@ -601,3 +601,29 @@ def invert_luminance(image, level):
     new_image[new_image < 0] = 0
     new_image[new_image > 1] = 1
     return new_image
+
+
+def get_noise_preprocessor(name, function=None, level=None, rng=None, rescale=1/255):
+    
+    if name.capitalize() == "Uniform":
+        perturbation_fn = functools.partial(function, width=level, 
+                                            contrast_level=contrast_level, rng=rng)
+    elif name.capitalize() == "Salt and Pepper":
+        perturbation_fn = functools.partial(function, p=level, 
+                                            contrast_level=contrast_level, rng=rng)
+    elif name.capitalize() == "High Pass" or name.capitalize() == "Low Pass":
+        perturbation_fn = functools.partial(function, std=level, bg_grey=mean/255)
+    elif name.capitalize() == "Contrast":
+        perturbation_fn = functools.partial(function, contrast_level=level)    
+    elif name.capitalize() == "Phase Scrambling":
+        perturbation_fn = functools.partial(function, width=level)
+    elif name.capitalize() == "Rotation":
+        perturbation_fn = functools.partial(function, degrees=level)
+    elif name.capitalize() in ["Darken", "Brighten", "Invert"]:
+        perturbation_fn = functools.partial(function, level=level)
+    elif name.capitalize() == "None":  # or function is None:
+        perturbation_fn = sanity_check
+    else:
+        print(f"Unknown noise type: {name.capitalize()}!")
+
+    return cifar_wrapper(perturbation_fn, rescale=rescale)

@@ -35,8 +35,8 @@ from tensorflow.keras.datasets import cifar10
 # sys.path.append('/work/code/keras_lr_finder/')
 # from mappings import HumanCategories
 from GaborNet import utils, plots
-from GaborNet.preparation import (as_perturbation_fn, as_greyscale_perturbation_fn, 
-                                  cifar_wrapper, sanity_check,
+from GaborNet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_fn, 
+                                  cifar_wrapper, get_noise_preprocessor, sanity_check,
                                   uniform_noise, salt_and_pepper_noise, 
                                   high_pass_filter, low_pass_filter,
                                   adjust_contrast, scramble_phases,
@@ -710,11 +710,13 @@ for test_set in test_sets:
 #             rescale = 1/255  # 1
         rescale = 1/255
         if invert:
-            prep_image = cifar_wrapper(functools.partial(invert_luminance, level=1),
-                                       rescale=rescale)
+            # prep_image = cifar_wrapper(functools.partial(invert_luminance, level=1),
+            #                            rescale=rescale)
+            prep_image = get_noise_preprocessor("Invert", invert_luminance, level=1, rescale=rescale)
         else:
 #             prep_image = None  # Error?!
-            prep_image = cifar_wrapper(sanity_check, rescale=rescale)
+            # prep_image = cifar_wrapper(sanity_check, rescale=rescale)
+            prep_image = get_noise_preprocessor("None", rescale=rescale)
         data_gen = ImageDataGenerator(# rescale=255,
                                       preprocessing_function=prep_image,
                                       featurewise_center=True, 
@@ -884,26 +886,29 @@ for noise, noise_fuction, levels in noise_types:
         # else:  # Deterministic perturbation
         #     perturbation_fn = functools.partial(noise_fuction, level)
 
-        if noise == "Uniform":
-            perturbation_fn = functools.partial(noise_fuction, width=level, 
-                                                contrast_level=contrast_level, rng=rng)
-        elif noise == "Salt and Pepper":
-            perturbation_fn = functools.partial(noise_fuction, p=level, 
-                                                contrast_level=contrast_level, rng=rng)
-        elif noise == "High Pass" or noise == "Low Pass":
-            perturbation_fn = functools.partial(noise_fuction, std=level)
-        elif noise == "Contrast":
-            perturbation_fn = functools.partial(noise_fuction, contrast_level=level)    
-        elif noise == "Phase Scrambling":
-            perturbation_fn = functools.partial(noise_fuction, width=level)
-        elif noise == "Rotation":
-            perturbation_fn = functools.partial(noise_fuction, degrees=level)
-        elif noise in ["Darken", "Brighten", "Invert"]:
-            perturbation_fn = functools.partial(noise_fuction, level=level)
-        else:
-            print(f"Unknown noise type: {noise}!")
+        prep_image = get_noise_preprocessor(noise, noise_function, level, rng=rng)
+#         if noise == "Uniform":
+#             perturbation_fn = functools.partial(noise_fuction, width=level, 
+#                                                 contrast_level=contrast_level, rng=rng)
+#         elif noise == "Salt and Pepper":
+#             perturbation_fn = functools.partial(noise_fuction, p=level, 
+#                                                 contrast_level=contrast_level, rng=rng)
+#         elif noise == "High Pass" or noise == "Low Pass":
+#             perturbation_fn = functools.partial(noise_fuction, std=level, bg_grey=mean/255)
+#         elif noise == "Contrast":
+#             perturbation_fn = functools.partial(noise_fuction, contrast_level=level)    
+#         elif noise == "Phase Scrambling":
+#             perturbation_fn = functools.partial(noise_fuction, width=level)
+#         elif noise == "Rotation":
+#             perturbation_fn = functools.partial(noise_fuction, degrees=level)
+#         elif noise in ["Darken", "Brighten", "Invert"]:
+#             perturbation_fn = functools.partial(noise_fuction, level=level)
+#         else:
+#             print(f"Unknown noise type: {noise}!")
 
-        prep_image = cifar_wrapper(perturbation_fn)
+#         prep_image = cifar_wrapper(perturbation_fn)
+        
+        
         # TODO: Check this is still deterministic when parallelised
         data_gen = ImageDataGenerator(preprocessing_function=prep_image,
                                         featurewise_center=True, 
