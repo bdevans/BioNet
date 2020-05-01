@@ -102,8 +102,14 @@ parser.add_argument('--image_path', type=str, default='',
                     help='Path to image files to load')
 parser.add_argument('--train_image_path', type=str, default='',
                     help='Path to training image files to load')
-parser.add_argument('--test_image_path', type=str, default='',
-                    help='Path to testing image files to load')
+# parser.add_argument('--test_image_path', type=str, default='',
+#                     help='Path to testing image files to load')
+parser.add_argument('--test_generalisation', action='store_true',
+                    help='Flag to test the model on sets of untrained images')
+parser.add_argument('--invert_test_images', type=bool, default=True, #action='store_true',
+                    help='Flag to invert the luminance of the test images')
+parser.add_argument('--test_perturbations', action='store_true',
+                    help='Flag to test the model on perturbed images')
 parser.add_argument('--data_augmentation', action='store_true', # type=bool, default=False,
                     help='Flag to train the model with data augmentation')
 parser.add_argument('-c', '--clean', action='store_true', default=False, required=False,
@@ -135,7 +141,10 @@ epochs = args['epochs']
 batch = args['batch']  # 64  # 32
 image_path = args['image_path']  # Deprecate?
 train_image_path = args['train_image_path']
-test_image_path = args['test_image_path']
+# test_image_path = args['test_image_path']
+test_generalisation = args['test_generalisation']
+invert_test_images = args['invert_test_images']
+test_perturbations = args['test_perturbations']
 data_augmentation = args['data_augmentation']
 recalculate_statistics = args['recalculate_statistics']
 optimizer = args['optimizer']  # 'RMSprop'
@@ -156,6 +165,8 @@ assert 0 < trial
 luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma transform)
 data_set = 'CIFAR10'
 n_classes = 10
+classes = ('airplane', 'automobile', 'bird', 'cat', 'deer', 
+           'dog', 'frog', 'horse', 'ship', 'truck')
 # CIFAR10 image statistics calculated across the training set (after converting to greyscale)
 mean = 122.61930353949222
 std = 60.99213660091195
@@ -202,6 +213,7 @@ report = 'batch'  # 'epoch'
 # use_initializer = False
 extension = 'h5'  # For saving model/weights
 
+data_dir = '/work/data'
 # Output paths
 models_dir = '/work/models'
 logs_dir = '/work/logs'
@@ -640,25 +652,102 @@ if skip_test:
     sys.exit()
 
 
-if test_image_path and os.path.isdir(test_image_path):
+all_test_sets = ['line_drawings', 'silhouettes', 'contours', 'scharr']
 
-    print(f'Testing {model_name} with images from {test_image_path}...')
+if isinstance(test_generalisation, str):
+    if test_generalisation.lower() == 'all':
+        test_sets = all_test_sets
+    elif test_generalisation.lower() in all_test_sets:
+        test_sets = [test_generalisation.lower()]
+    else:
+        warnings.warn(f'Unknown generalisation test set: {test_generalisation}!')
+        test_sets = []
+elif isinstance(test_generalisation, bool):
+    if test_generalisation:
+        test_sets = all_test_sets
+    else:
+        test_sets = []
+else:
+    warnings.warn(f'Unknown generalisation test set type: {test_generalisation} ({type(test_generalisation)})!')
+    test_sets = []
+
+# if test_generalisation or (isinstance(test_generalisation, str) and test_generalisation.lower() == 'all'):
+#     test_sets = all_test_sets
+# elif test_generalisation.lower() in all_test_sets:
+#     test_sets = [test_generalisation.lower()]
+# else:
+#     warnings.warn(f'Unknown generalisation test set: {test_generalisation}!')
+#     test_sets = []
+
+if test_generalisation:
+    if invert_test_images:
+        # test_sets.extend([f'{test_set}_inverted' for test_set in test_sets])
+        inversions = [False, True]
+    else:
+        inversions = [False]
+
+    fieldnames = ['Trial', 'Model', 'Convolution', 'Base', 'Weights',
+                  'Set', 'Inverted', 'Loss', 'Accuracy']
+    results_file = os.path.join(save_to_dir, f"generalise_{sim_set}.csv")
+    with open(results_file, 'w') as results:
+        writer = csv.DictWriter(results, fieldnames=fieldnames)
+        writer.writeheader()
+
+# if test_image_path and os.path.isdir(test_image_path):
+for test_set in test_sets:
+    test_image_path = os.path.join(data_dir, test_set)
+    assert os.path.isdir(test_image_path)
+
+    for invert in inversions:
+        print(f"Testing {model_name} with images from {test_image_path}{' (inverted)' if invert else ''}...", flush=True)
     t0 = time.time()
     rng = np.random.RandomState(seed=seed)
-    data_gen = ImageDataGenerator(preprocessing_function=None,
+
+        # NOTE: Generalisation test images are already in [0, 1] so do not rescale before preprocessing
+#         if test_set in ['scharr']:
+#             rescale = 1/255
+#         else:
+#             rescale = 1/255  # 1
+        rescale = 1/255
+        if invert:
+            prep_image = cifar_wrapper(functools.partial(invert_luminance, level=1),
+                                       rescale=rescale)
+        else:
+#             prep_image = None  # Error?!
+            prep_image = cifar_wrapper(sanity_check, rescale=rescale)
+        data_gen = ImageDataGenerator(# rescale=255,
+                                      preprocessing_function=prep_image,
                                 featurewise_center=True, 
                                 featurewise_std_normalization=True)
 
     # data_gen.fit(x_train)  # Set mean and std
+#         if invert:
+#             data_gen.mean = 255 - mean
+#             data_gen.std = std
+#         else:
+#             data_gen.mean = mean
+#             data_gen.std = std
     data_gen.mean = mean
     data_gen.std = std
+
+        if save_images:
+            # image_prefix = f"{noise.replace(' ', '_').lower()}"
+            generalisation_dir = os.path.join(image_out_dir, f"{test_set}{'_inverted' if invert else ''}")
+            os.makedirs(generalisation_dir, exist_ok=True)
+            # generalisation_prefix = f"L{l_ind+1:02d}"
+            generalisation_prefix = ''
+        else:
+            generalisation_dir = None
+            generalisation_prefix = ''
 
     gen_test = data_gen.flow_from_directory(test_image_path,
                                             target_size=image_size,
                                             color_mode=colour,
                                             batch_size=batch,
                                             shuffle=False, seed=seed,
-                                            interpolation=interpolation)
+                                                interpolation=interpolation,
+                                                save_to_dir=generalisation_dir, 
+                                                save_prefix=generalisation_prefix)
 
     metrics = model.evaluate(gen_test, 
                             # steps=gen_test.n//batch,
@@ -667,11 +756,18 @@ if test_image_path and os.path.isdir(test_image_path):
                             workers=workers,
                             use_multiprocessing=use_multiprocessing)
 
+        row = {'Trial': trial, 'Model': mod, 'Convolution': convolution, 'Base': base, 'Weights': weights,
+               'Set': test_set, 'Inverted': invert,  # os.path.basename(test_image_path),
+               'Loss': metrics[0], 'Accuracy': metrics[1]}
+        with open(results_file, 'a') as results:
+            writer = csv.DictWriter(results, fieldnames=fieldnames)
+            writer.writerow(row)
+
     if train:
         metrics_dict = {metric: score for metric, score in zip(model.metrics_names, metrics)}
-        print(f"{metrics_dict}")
+            print(f"Evaluation results: {metrics_dict}")
     else:
-        print(f"{metrics}")
+            print(f"Evaluation results: {metrics}")
 
     if save_predictions:
         predictions = model.predict(gen_test, 
@@ -681,18 +777,25 @@ if test_image_path and os.path.isdir(test_image_path):
                                     workers=workers,
                                     use_multiprocessing=use_multiprocessing)
         # print(predictions.shape)  # (n_images, n_classes)
-        predictions_file = os.path.join(save_to_dir, 'predictions', f'{model_name}_{os.path.basename(test_image_path)}.csv')
-        header = [f'p(class={c})' for c in range(n_classes)]
-        np.savetxt(predictions_file, predictions, delimiter=',', header=','.join(header))
+            file_name = f"{model_name}_{test_set}{'_inverted' if invert else ''}.csv"
+            predictions_file = os.path.join(save_to_dir, 'predictions', file_name)
+            # header = [f'p(class={c})' for c in classes]  # range(n_classes)]
+            np.savetxt(predictions_file, predictions, delimiter=',', 
+                       header=','.join([f'p(class={c})' for c in classes]))
+            print(f'Predictions written to: {predictions_file}')
 
     t_elapsed = time.time() - t0
-    print(f'Testing finished! [{t_elapsed:.3f}s]')
+        print(f"Testing {test_set}{' (inverted)' if invert else ''} images finished! [{t_elapsed:.3f}s]", flush=True)
+        print("-" * 80)
 
-    # Clear GPU memory
-    tf.keras.backend.clear_session()
+    print('Generalisation testing finished!')
+if not len(test_sets):
+    print('Generalisation testing skipped!')
     print("=" * 80)
-    sys.exit()
 
+# Clear GPU memory
+# tf.keras.backend.clear_session()
+# sys.exit()
 
 
 
@@ -742,6 +845,12 @@ if args['train_with_noise']:
     #     with open(os.path.join(save_dir, f'{model_name}_CONDVALLOSS.json'), "w") as jf:
     #         json.dump(cond_loss, jf)
 
+
+
+if not test_perturbations:
+    # Clear GPU memory
+    tf.keras.backend.clear_session()
+    sys.exit()
 
 # Create testing results files
 
