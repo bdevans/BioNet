@@ -133,7 +133,7 @@ def as_greyscale_perturbation_fn(f):
 
 
 # Build a perturbed stimulus generator
-def cifar_wrapper(f):
+def cifar_wrapper(f, rescale=1/255):
     """
     Wrapper for perturbation functions when used with upscaled CIFAR10 images.
     
@@ -183,7 +183,11 @@ def cifar_wrapper(f):
         # image = rgb2grey(image)
 
         # Scale to [0, 1]
-        image /= 255
+        # image /= 255
+        image *= rescale
+        assert 0 <= np.amin(image), f"Min = {np.amin(image)}"
+        assert np.amax(image) <= 1, f"Max = {np.amax(image)}"
+        # assert np.amax(image) > 0.5
 
         # Assume this expects RGB values in range [0, 1]
         perturbed = f(np.squeeze(image))
@@ -202,6 +206,7 @@ def cifar_wrapper(f):
 
         # Convert back because VGG19 expects zero-centred BGR images
         perturbed *= 255
+        # perturbed /= rescale
         # NOTE: This could be passed to ImageDataGenerator with featurewise_center
         # This would allow contrast reduction to be taken into account
 #             perturbed -= _LUMINANCE_MEAN
