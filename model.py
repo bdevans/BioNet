@@ -250,9 +250,9 @@ noise_types = [("Uniform", uniform_noise, np.linspace(0, 1, n_levels)),
                ("Low Pass", low_pass_filter, np.logspace(0, 2, n_levels)),
                ("Contrast", adjust_contrast, np.logspace(0, -2, n_levels)),
                ("Phase Scrambling", scramble_phases, np.linspace(0, 180, n_levels)),
-               ("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int)),
                ("Darken", adjust_brightness, np.linspace(0, -1, n_levels)),
                ("Brighten", adjust_brightness, np.linspace(0, 1, n_levels)),
+               ("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int)),
                ('Invert', invert_luminance, np.array([0, 1], dtype=int))]
 
 if upscale:
