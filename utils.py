@@ -1,3 +1,7 @@
+"""
+This module contains help functions and general utilities for building custom convolutional layers.
+"""
+
 import os
 from pprint import pprint
 
@@ -142,7 +146,8 @@ def convolve_tensor(x, kernel_tensor=None):
 
 
 def substitute_layer(model, params, filter_type='gabor', replace_layer=1, 
-                     input_shape=None, colour_input='rgb', use_initializer=False, verbose=0):
+                     input_shape=None, colour_input='rgb', 
+                     use_initializer=False, verbose=0):
 
     assert isinstance(replace_layer, int)
     assert 0 < replace_layer < len(model.layers)
@@ -195,8 +200,8 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
             print(f"Replacing layer {ind}: '{layer.name}' --> '{filter_type}_conv'...")
             if use_initializer:
                 if filter_type.lower() == 'gabor':
-                n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
-                                              * len(params['gammas']) * len(params['psis'])
+                    n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
+                                                  * len(params['gammas']) * len(params['psis'])
                     kernel_initializer = GaborInitializer(params)
                 elif filter_type.lower() == 'low-pass':
                     n_kernels = len(params['sigmas'])

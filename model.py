@@ -47,7 +47,6 @@ print('+' * 80)  # Simulation metadata
 print(f'[{datetime.now().strftime("%Y/%m/%d %H:%M:%S")}] Starting simulation...')
 print("\nTensorFlow:", tf.__version__)
 print(f"Channel ordering: {tf.keras.backend.image_data_format()}")  # TensorFlow: Channels last order.
-# print("RGB/BGR")
 gpus = tf.config.experimental.list_physical_devices('GPU')
 pprint.pprint(gpus)
 
@@ -176,18 +175,18 @@ contrast_level = 1  # Proportion of original contrast level for uniform and salt
 weights = None
 
 if convolution.capitalize() == 'Gabor':
-# Gabor parameters
-params = {# 'ksize': (127, 127), 
-          'ksize': (63, 63),
-          'gammas': [0.5], 
-#           'bs': np.linspace(0.4, 2.6, num=3),  # 0.4, 1, 1.8, 2.6
-#           'bs': np.linspace(0.4, 2.6, num=5),
-          'bs': np.linspace(1, 2.6, num=3).tolist(),
-#           'bs': np.linspace(1, 2.6, num=5),
-#           'sigmas': [4, 8, 16],  # , 32 
-          'sigmas': [8],
-          'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
-          'psis': [np.pi/2, 3*np.pi/2]}
+    # Gabor parameters
+    params = {# 'ksize': (127, 127), 
+              'ksize': (63, 63),
+              'gammas': [0.5], 
+    #           'bs': np.linspace(0.4, 2.6, num=3),  # 0.4, 1, 1.8, 2.6
+    #           'bs': np.linspace(0.4, 2.6, num=5),
+              'bs': np.linspace(1, 2.6, num=3).tolist(),
+    #           'bs': np.linspace(1, 2.6, num=5),
+    #           'sigmas': [4, 8, 16],  # , 32 
+              'sigmas': [8],
+              'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
+              'psis': [np.pi/2, 3*np.pi/2]}
     mod = f'Gabor_{base}'
 elif convolution.capitalize() == 'Low-pass':
     params = {'ksize': (63, 63),
@@ -205,6 +204,7 @@ else:
 
 filter_params = params
 
+    
 max_queue_size = 10
 workers = 12  # 4
 use_multiprocessing = False
@@ -219,25 +219,20 @@ models_dir = '/work/models'
 logs_dir = '/work/logs'
 results_dir = '/work/results'
 os.makedirs(models_dir, exist_ok=True)
-# os.makedirs(results_dir, exist_ok=True)
-
 # label is ignored if empty
 save_to_dir = os.path.join('/work/results/', label)
 os.makedirs(save_to_dir, exist_ok=True)
+
 if save_predictions:
     os.makedirs(os.path.join(save_to_dir, 'predictions'), exist_ok=True)
 
 if save_images:
     image_out_dir = os.path.join(save_to_dir, 'img')
-    # save_to_dir = '/work/results/img/'
-    # if label:  # len(label) > 0:
-    #     save_to_dir = os.path.join(save_to_dir, label)
     os.makedirs(image_out_dir, exist_ok=True)
 else:
     image_out_dir = None
     image_prefix = ''
 
-# Process stimuli
 print('=' * 80)
 
 # Hardcode noise levels
@@ -255,6 +250,7 @@ noise_types = [("Uniform", uniform_noise, np.linspace(0, 1, n_levels)),
                ("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int)),
                ('Invert', invert_luminance, np.array([0, 1], dtype=int))]
 
+# Process stimuli
 if upscale:
     image_size = (224, 224)
     image_shape = image_size + (1,)
@@ -277,6 +273,8 @@ if image_path and os.path.isdir(image_path):
     assert n_classes == len(test_images)
 
 # if test_image_path and os.path.isdir(test_image_path):
+
+
 
 
 # TODO: Finish or remove
@@ -327,6 +325,8 @@ if args['train_with_noise']:
     # else:
     #     sys.exit(f"Unknown data set requested: {data_set}")
 else:
+
+    
     # Set up stimuli
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()  # RGB format
     x_train = np.expand_dims(np.dot(x_train, luminance_weights), axis=-1)
@@ -457,16 +457,16 @@ model_base = {'vgg16': tf.keras.applications.vgg16.VGG16,
 # ResNet50, Inception V3, and Xception
 
 model = model_base[base.lower().replace('-', '')](weights=weights, 
-                                            include_top=True, 
-                                            classes=1000)
+                                                  include_top=True, 
+                                                  classes=1000)
 # model = tf.keras.applications.vgg16.VGG16(weights=weights, 
 #                                             include_top=True, 
 #                                             classes=1000)
 model = utils.substitute_layer(model, filter_params, 
                                filter_type=convolution,
-                                input_shape=image_size, 
-                                colour_input=colour, 
-                                use_initializer=use_initializer)
+                               input_shape=image_size, 
+                               colour_input=colour, 
+                               use_initializer=use_initializer)
 if n_classes != 1000:
     model = utils.substitute_output(model, n_classes=n_classes)
 
@@ -492,7 +492,7 @@ print(f"Trial: {trial}; seed={seed}", flush=True)
 # else:  # Save whole model since metadata can not be saved as JSON
 #     model_data_file = f"{full_path_to_model}.{extension}"
 
-    model_data_file = f"{full_path_to_model}_weights.{extension}"
+model_data_file = f"{full_path_to_model}_weights.{extension}"
 
 if not train:
     print(f"Loading {model_name}...", flush=True)
@@ -700,8 +700,8 @@ for test_set in test_sets:
 
     for invert in inversions:
         print(f"Testing {model_name} with images from {test_image_path}{' (inverted)' if invert else ''}...", flush=True)
-    t0 = time.time()
-    rng = np.random.RandomState(seed=seed)
+        t0 = time.time()
+        rng = np.random.RandomState(seed=seed)
 
         # NOTE: Generalisation test images are already in [0, 1] so do not rescale before preprocessing
 #         if test_set in ['scharr']:
@@ -717,19 +717,19 @@ for test_set in test_sets:
             prep_image = cifar_wrapper(sanity_check, rescale=rescale)
         data_gen = ImageDataGenerator(# rescale=255,
                                       preprocessing_function=prep_image,
-                                featurewise_center=True, 
-                                featurewise_std_normalization=True)
+                                      featurewise_center=True, 
+                                      featurewise_std_normalization=True)
 
-    # data_gen.fit(x_train)  # Set mean and std
+        # data_gen.fit(x_train)  # Set mean and std
 #         if invert:
 #             data_gen.mean = 255 - mean
 #             data_gen.std = std
 #         else:
 #             data_gen.mean = mean
 #             data_gen.std = std
-    data_gen.mean = mean
-    data_gen.std = std
-
+        data_gen.mean = mean
+        data_gen.std = std
+        
         if save_images:
             # image_prefix = f"{noise.replace(' ', '_').lower()}"
             generalisation_dir = os.path.join(image_out_dir, f"{test_set}{'_inverted' if invert else ''}")
@@ -740,21 +740,21 @@ for test_set in test_sets:
             generalisation_dir = None
             generalisation_prefix = ''
 
-    gen_test = data_gen.flow_from_directory(test_image_path,
-                                            target_size=image_size,
-                                            color_mode=colour,
-                                            batch_size=batch,
-                                            shuffle=False, seed=seed,
+        gen_test = data_gen.flow_from_directory(test_image_path,
+                                                target_size=image_size,
+                                                color_mode=colour,
+                                                batch_size=batch,
+                                                shuffle=False, seed=seed,
                                                 interpolation=interpolation,
                                                 save_to_dir=generalisation_dir, 
                                                 save_prefix=generalisation_prefix)
 
-    metrics = model.evaluate(gen_test, 
-                            # steps=gen_test.n//batch,
-                            verbose=1,
-                            max_queue_size=max_queue_size,
-                            workers=workers,
-                            use_multiprocessing=use_multiprocessing)
+        metrics = model.evaluate(gen_test, 
+                                 # steps=gen_test.n//batch,
+                                 verbose=1,
+                                 max_queue_size=max_queue_size,
+                                 workers=workers,
+                                 use_multiprocessing=use_multiprocessing)
 
         row = {'Trial': trial, 'Model': mod, 'Convolution': convolution, 'Base': base, 'Weights': weights,
                'Set': test_set, 'Inverted': invert,  # os.path.basename(test_image_path),
@@ -763,20 +763,20 @@ for test_set in test_sets:
             writer = csv.DictWriter(results, fieldnames=fieldnames)
             writer.writerow(row)
 
-    if train:
-        metrics_dict = {metric: score for metric, score in zip(model.metrics_names, metrics)}
+        if train:
+            metrics_dict = {metric: score for metric, score in zip(model.metrics_names, metrics)}
             print(f"Evaluation results: {metrics_dict}")
-    else:
+        else:
             print(f"Evaluation results: {metrics}")
 
-    if save_predictions:
-        predictions = model.predict(gen_test, 
-                                    verbose=1,
-                                    # steps=gen_test.n//batch,
-                                    max_queue_size=max_queue_size,
-                                    workers=workers,
-                                    use_multiprocessing=use_multiprocessing)
-        # print(predictions.shape)  # (n_images, n_classes)
+        if save_predictions:
+            predictions = model.predict(gen_test, 
+                                        verbose=1,
+                                        # steps=gen_test.n//batch,
+                                        max_queue_size=max_queue_size,
+                                        workers=workers,
+                                        use_multiprocessing=use_multiprocessing)
+            # print(predictions.shape)  # (n_images, n_classes)
             file_name = f"{model_name}_{test_set}{'_inverted' if invert else ''}.csv"
             predictions_file = os.path.join(save_to_dir, 'predictions', file_name)
             # header = [f'p(class={c})' for c in classes]  # range(n_classes)]
@@ -784,14 +784,14 @@ for test_set in test_sets:
                        header=','.join([f'p(class={c})' for c in classes]))
             print(f'Predictions written to: {predictions_file}')
 
-    t_elapsed = time.time() - t0
+        t_elapsed = time.time() - t0
         print(f"Testing {test_set}{' (inverted)' if invert else ''} images finished! [{t_elapsed:.3f}s]", flush=True)
         print("-" * 80)
 
     print('Generalisation testing finished!')
 if not len(test_sets):
     print('Generalisation testing skipped!')
-    print("=" * 80)
+print("=" * 80)
 
 # Clear GPU memory
 # tf.keras.backend.clear_session()
@@ -832,11 +832,11 @@ if args['train_with_noise']:
         row = {'Trial': trial, 'Model': mod, 
                'Convolution': convolution, 'Base': base, 'Weights': weights,
                'Noise': noise, 'Level': level,
-                'Loss': metrics[0], 'Accuracy': metrics[1]}
+               'Loss': metrics[0], 'Accuracy': metrics[1]}
         with open(results_file, 'a') as results:
             writer = csv.DictWriter(results, fieldnames=fieldnames)
             writer.writerow(row)
-        rows.append(row)
+        # rows.append(row)
 
     # print("Saving metrics: ", model.metrics_names)
     # with open(os.path.join(save_dir, f'{model_name}_CONDVALACC.json'), "w") as jf:
@@ -872,7 +872,7 @@ for noise, noise_fuction, levels in noise_types:
     print(f"[{model_name}] Perturbing test images with {noise} noise...")
     print("-" * 80)
     for l_ind, level in enumerate(levels):
-        print(f"[{l_ind+1:02d}/{len(levels)}] level={float(level):6.2f}: ", end='', flush=True)
+        print(f"[{l_ind+1:02d}/{len(levels):02d}] level={float(level):6.2f}: ", end='', flush=True)
 
         t0 = time.time()
         # t0 = datetime.now()
@@ -922,9 +922,8 @@ for noise, noise_fuction, levels in noise_types:
             test_image_dir = None
 
         gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
-                                    shuffle=False, seed=seed,  # True
-                                    save_to_dir=test_image_dir, save_prefix=image_prefix)
-                                    # save_to_dir=save_to_dir, save_prefix=save_prefix)
+                                 shuffle=False, seed=seed,  # True
+                                 save_to_dir=test_image_dir, save_prefix=image_prefix)
 
         metrics = model.evaluate_generator(gen_test, #steps=gen_test.n//batch,
                                             max_queue_size=max_queue_size,
@@ -957,20 +956,22 @@ for noise, noise_fuction, levels in noise_types:
                                         workers=workers,
                                         use_multiprocessing=use_multiprocessing)
             # test_predictions.append(predictions)
-            print(predictions.shape)
+            # print(predictions.shape)
             # test_predictions[mod].append(predictions)
             # TODO
             # with open(predictions_file, 'a') as pred_file:
             #     pred_writer = csv.
-            predictions_file = os.path.join(save_to_dir, 'predictions', f'{model_name}_{os.path.basename(test_image_path)}.csv')
-            header = [f'p(class={c})' for c in range(n_classes)]
-            np.savetxt(predictions_file, predictions, delimiter=',', header=','.join(header))
+            predictions_file = os.path.join(save_to_dir, 'predictions', 
+                                            f'{model_name}_{noise.replace(" ", "_").lower()}_L{l_ind+1:02d}.csv')
+            # header = [f'p(class={c})' for c in classes] # range(n_classes)]
+            np.savetxt(predictions_file, predictions, delimiter=',', 
+                       header=','.join([f'p(class={c})' for c in classes]))
 
         del gen_test
         row = {'Trial': trial, 'Model': mod, 
                'Convolution': convolution, 'Base': base, 'Weights': weights,
                'Noise': noise, 'Level': level,
-                'Loss': metrics[0], 'Accuracy': metrics[1]}
+               'Loss': metrics[0], 'Accuracy': metrics[1]}
         with open(results_file, 'a') as results:
             writer = csv.DictWriter(results, fieldnames=fieldnames)
             writer.writerow(row)
