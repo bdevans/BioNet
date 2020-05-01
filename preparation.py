@@ -603,27 +603,28 @@ def invert_luminance(image, level):
     return new_image
 
 
-def get_noise_preprocessor(name, function=None, level=None, rng=None, rescale=1/255):
+def get_noise_preprocessor(name, function=None, level=None, contrast_level=1,
+                           rng=None, rescale=1/255):
     
-    if name.capitalize() == "Uniform":
+    if name == "Uniform":
         perturbation_fn = functools.partial(function, width=level, 
                                             contrast_level=contrast_level, rng=rng)
-    elif name.capitalize() == "Salt and Pepper":
+    elif name == "Salt and Pepper":
         perturbation_fn = functools.partial(function, p=level, 
                                             contrast_level=contrast_level, rng=rng)
-    elif name.capitalize() == "High Pass" or name.capitalize() == "Low Pass":
+    elif name in ["High Pass", "Low Pass"]:
         perturbation_fn = functools.partial(function, std=level, bg_grey=mean/255)
-    elif name.capitalize() == "Contrast":
+    elif name == "Contrast":
         perturbation_fn = functools.partial(function, contrast_level=level)    
-    elif name.capitalize() == "Phase Scrambling":
+    elif name == "Phase Scrambling":
         perturbation_fn = functools.partial(function, width=level)
-    elif name.capitalize() == "Rotation":
+    elif name == "Rotation":
         perturbation_fn = functools.partial(function, degrees=level)
-    elif name.capitalize() in ["Darken", "Brighten", "Invert"]:
+    elif name in ["Darken", "Brighten", "Invert"]:
         perturbation_fn = functools.partial(function, level=level)
-    elif name.capitalize() == "None":  # or function is None:
+    elif name == "None":  # or function is None:
         perturbation_fn = sanity_check
     else:
-        print(f"Unknown noise type: {name.capitalize()}!")
+        print(f"Unknown noise type: {name}!")
 
     return cifar_wrapper(perturbation_fn, rescale=rescale)
