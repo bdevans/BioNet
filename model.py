@@ -870,7 +870,7 @@ with open(results_file, 'w') as results:
     writer.writeheader()
 
 # TODO: Optionally test (and generate through the ImageDataGenerator) unperturbed images (L0)
-for noise, noise_fuction, levels in noise_types:
+for noise, noise_function, levels in noise_types:
     print(f"[{model_name}] Perturbing test images with {noise} noise...")
     print("-" * 80)
     for l_ind, level in enumerate(levels):
@@ -881,28 +881,28 @@ for noise, noise_fuction, levels in noise_types:
         rng = np.random.RandomState(seed=seed+l_ind)
 
         # if noise in ["Uniform", "Salt and Pepper"]:  # Stochastic perturbations
-        #     perturbation_fn = functools.partial(noise_fuction, level, 
+        #     perturbation_fn = functools.partial(noise_function, level, 
         #                                         contrast_level=1, rng=rng)
         # else:  # Deterministic perturbation
-        #     perturbation_fn = functools.partial(noise_fuction, level)
+        #     perturbation_fn = functools.partial(noise_function, level)
 
         prep_image = get_noise_preprocessor(noise, noise_function, level, rng=rng)
 #         if noise == "Uniform":
-#             perturbation_fn = functools.partial(noise_fuction, width=level, 
+#             perturbation_fn = functools.partial(noise_function, width=level, 
 #                                                 contrast_level=contrast_level, rng=rng)
 #         elif noise == "Salt and Pepper":
-#             perturbation_fn = functools.partial(noise_fuction, p=level, 
+#             perturbation_fn = functools.partial(noise_function, p=level, 
 #                                                 contrast_level=contrast_level, rng=rng)
 #         elif noise == "High Pass" or noise == "Low Pass":
-#             perturbation_fn = functools.partial(noise_fuction, std=level, bg_grey=mean/255)
+#             perturbation_fn = functools.partial(noise_function, std=level, bg_grey=mean/255)
 #         elif noise == "Contrast":
-#             perturbation_fn = functools.partial(noise_fuction, contrast_level=level)    
+#             perturbation_fn = functools.partial(noise_function, contrast_level=level)    
 #         elif noise == "Phase Scrambling":
-#             perturbation_fn = functools.partial(noise_fuction, width=level)
+#             perturbation_fn = functools.partial(noise_function, width=level)
 #         elif noise == "Rotation":
-#             perturbation_fn = functools.partial(noise_fuction, degrees=level)
+#             perturbation_fn = functools.partial(noise_function, degrees=level)
 #         elif noise in ["Darken", "Brighten", "Invert"]:
-#             perturbation_fn = functools.partial(noise_fuction, level=level)
+#             perturbation_fn = functools.partial(noise_function, level=level)
 #         else:
 #             print(f"Unknown noise type: {noise}!")
 
