@@ -58,32 +58,35 @@ warnings.filterwarnings("ignore", "tensorflow:Model failed to serialize as JSON.
 # Instantiate the parser
 parser = argparse.ArgumentParser()
 
+# TODO: Check if abbreviations only work for flags
 # parser.add_argument('--model', type=str, default='GaborNet',
 #                     help='Name of model to use')
 parser.add_argument('--convolution', type=str, default='Original',
                     help='Name of convolutional filter to use')
 parser.add_argument('--base', type=str, default='VGG16',
                     help='Name of model to use')
-parser.add_argument('-a', '--architecture', type=str, default='model.json',
+parser.add_argument('--pretrain', action='store_true', # type=bool, default=False,
+                    help='Flag to use ImageNet weights the model')
+parser.add_argument('--architecture', type=str, default='model.json',
                     help='Parameter file (JSON) to load')
 parser.add_argument('--upscale', action='store_true', #default=False, required=False,
                     help='Flag to upscale the CIFAR10 images')
 parser.add_argument('--interpolate', action='store_true', default=False, required=False,
                     help='Flag to interpolate the images when upscaling')
-parser.add_argument('-o', '--optimizer', type=str, default='RMSprop',
+parser.add_argument('--optimizer', type=str, default='RMSprop',
                     choices=['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam'],
                     help='Name of optimizer to use: https://keras.io/optimizers/')
-parser.add_argument('-r', '--lr', '--learning_rate', type=float, default=1e-4, required=False,
+parser.add_argument('--lr', '--learning_rate', type=float, default=1e-4, required=False,  # '-r',  
                     help='Learning rate for training')
-parser.add_argument('-d', '--decay', type=float, default=1e-6, required=False,
+parser.add_argument('--decay', type=float, default=1e-6, required=False,
                     help='Optimizer decay for training')
-parser.add_argument('-i', '--use_initializer', action='store_true', default=False, required=False,
+parser.add_argument('--use_initializer', action='store_true', default=False, required=False,
                     help='Flag to use the weight initializer (then freeze weights) for the Gabor filters')
 parser.add_argument('--trial', type=int, default=1,  # default to 0 when unspecified?
-                    help='Trial number For labeling different runs of the same model')
+                    help='Trial number for labeling different runs of the same model')
 parser.add_argument('--label', type=str, default='',
                     help='For labeling different runs of the same model')
-parser.add_argument('-s', '--seed', type=int, default=42,
+parser.add_argument('--seed', type=int, default=42,
                     help='Random seed to use')
 parser.add_argument('-t', '--train', action='store_true', # type=bool, default=False,
                     help='Flag to train the model')
@@ -93,7 +96,7 @@ parser.add_argument('--recalculate_statistics', action='store_true',
                     help='Flag to recalculate normalisation statistics over the training set')
 parser.add_argument('--epochs', type=int, default=20, required=False,
                     help='Number of epochs to train model')
-parser.add_argument("-b", "--batch", type=int, default=64,
+parser.add_argument("--batch", type=int, default=64,
 	                help="Size of mini-batches passed to the network")
 parser.add_argument('--image_path', type=str, default='',
                     help='Path to image files to load')
