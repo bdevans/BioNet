@@ -169,8 +169,8 @@ def cifar_wrapper(f, rescale=1/255):
         # keras_preprocessing.image.utils.loag_img
         # https://gist.github.com/rstml/bbd491287efc24133b90d4f7f3663905
 
-        # Assume the image has already been converted to greyscale by the ImageDatagenerator
-        assert image.shape == (224, 224, 1)
+        # Assume the image has already been converted to greyscale by the ImageDatagenerator: .flow(colour_mode='grayscale')
+        assert image.shape == (224, 224, 1), f"Given: {image.shape}"
         # Commented out for speed
         # assert 0 <= np.amin(image)
         # assert np.amax(image) <= 255
