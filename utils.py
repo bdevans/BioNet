@@ -198,6 +198,9 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                 n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
                                               * len(params['gammas']) * len(params['psis'])
                     kernel_initializer = GaborInitializer(params)
+                elif filter_type.lower() == 'low-pass':
+                    n_kernels = len(params['sigmas'])
+                    kernel_initializer = LowPassInitializer(params)
                 # When using this layer as the first layer in a model, provide the keyword argument 
                 # input_shape (tuple of integers, does not include the batch axis), 
                 # e.g. input_shape=(128, 128, 3) for 128x128 RGB pictures in data_format="channels_last".
@@ -208,10 +211,10 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                            activation='relu', use_bias=True,
                         #    activation=None, use_bias=False,
                            name=f"{filter_type}_conv",
-                           kernel_initializer=GaborInitializer(params))(x)
+                           kernel_initializer=kernel_initializer)(x)
                 # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
 
-            else:
+            else:  # Deprecated
                 assert isinstance(layer, tf.keras.layers.Conv2D)
                 # Generate Gabor filters
                 # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
@@ -279,7 +282,7 @@ def substitute_output(model, n_classes=16):
 
 
 class GaborInitializer(Initializer):
-    """Gabor Initializer class."""
+    """Gabor kernel initializer class."""
 
     def __init__(self, params, dtype=dtypes.float32):
         self.dtype = dtypes.as_dtype(dtype)
@@ -309,3 +312,91 @@ class GaborInitializer(Initializer):
         """
         # return {"dtype": self.dtype.name ...}
         return self.params
+
+    
+# from preparation import low_pass_filter
+
+class LowPassInitializer(Initializer):
+    """Low Pass filter Initializer class."""
+
+    def __init__(self, params, dtype=dtypes.float32):
+        self.dtype = dtypes.as_dtype(dtype)
+        self.params = params
+
+    def __call__(self, shape, dtype=None, partition_info=None):
+        """Returns a tensor object initialized as specified by the initializer.
+        Args:
+            shape: Shape of the tensor.
+            dtype: Optional dtype of the tensor. If not provided use the initializer
+            dtype.
+            partition_info: Optional information about the possible partitioning of a
+            tensor.
+        """
+        
+        kernel_size = self.params['ksize']
+#         assert kernel_size == shape[0] == shape[1]
+#         sigma = self.params['sigma']
+
+        # Method 1
+#         # create nxn zeros
+#         inp = np.zeros((kernel_size, kernel_size))
+#         # set element at the middle to one, a dirac delta
+#         inp[kernel_size//2, kernel_size//2] = 1
+#         # gaussian-smooth the dirac, resulting in a gaussian filter mask
+#         return low_pass_filter(inp, std)[:,:,0]
+        
+        # Method 2
+        kernels = []
+        for sigma in self.params['sigmas']:
+            kern_x = cv2.getGaussianKernel(kernel_size[0], sigma)
+            kern_y = cv2.getGaussianKernel(kernel_size[1], sigma)
+            kern = np.outer(kern_x, kern_y)
+            kern /= np.sum(kern)
+            kern = kern.astype('float32')  # HACK
+            kern = K.expand_dims(kern, -1)
+            kernels.append(kern)
+        return K.stack(kernels, axis=-1)
+#         return kern
+
+    def get_config(self):
+        """Returns the configuration of the initializer as a JSON-serializable dict.
+        Returns:
+        A JSON-serializable Python dict.
+        """
+        # return {"dtype": self.dtype.name ...}
+        return self.params
+
+
+class KernelInitializer(Initializer):
+    """Kernel initializer class for Conv2D layers."""
+
+    def __init__(self, params, kernel_function, dtype=dtypes.float32):
+        self.dtype = dtypes.as_dtype(dtype)
+        self.params = params
+        self.function = kernel_function
+        # self.n_kernels = self.calc_n_kernels(params)
+    
+    def calc_n_kernels(params):
+        return np.prod([value for param, value in params.items() if param != 'ksize'], dtype=int)
+#         return len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
+#                                  * len(params['gammas']) * len(params['psis'])
+
+    def __call__(self, shape, dtype=None, partition_info=None):
+        """Returns a tensor object initialized as specified by the initializer.
+        Args:
+            shape: Shape of the tensor.
+            dtype: Optional dtype of the tensor. If not provided use the initializer
+            dtype.
+            partition_info: Optional information about the possible partitioning of a
+            tensor.
+        """
+        return self.function(**self.params)
+
+    def get_config(self):
+        """Returns the configuration of the initializer as a JSON-serializable dict.
+        Returns:
+        A JSON-serializable Python dict.
+        """
+        # return {"dtype": self.dtype.name ...}
+        return self.params
+        
