@@ -888,7 +888,8 @@ for noise, noise_function, levels in noise_types:
         # else:  # Deterministic perturbation
         #     perturbation_fn = functools.partial(noise_function, level)
 
-        prep_image = get_noise_preprocessor(noise, noise_function, level, rng=rng)
+        prep_image = get_noise_preprocessor(noise, noise_function, level, 
+                                            contrast_level=contrast_level, rng=rng)
 #         if noise == "Uniform":
 #             perturbation_fn = functools.partial(noise_function, width=level, 
 #                                                 contrast_level=contrast_level, rng=rng)
