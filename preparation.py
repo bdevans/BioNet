@@ -278,8 +278,10 @@ def adjust_contrast(image, contrast_level):
 
     assert(contrast_level >= 0.0), "contrast_level too low."
     assert(contrast_level <= 1.0), "contrast_level too high."
-
-    return (1-contrast_level)/2.0 + image.dot(contrast_level)
+    image = (1-contrast_level)/2.0 + image.dot(contrast_level)
+    image[image < 0] = 0
+    image[image > 1] = 1
+    return image
 
 
 def salt_and_pepper_noise(image, p, contrast_level, rng, check=False):
@@ -350,6 +352,7 @@ def apply_uniform_noise(image, low, high, rng=None, check=False):
     #clip values
     # image = np.where(image < 0, 0, image)
     # image = np.where(image > 1, 1, image)
+    # np.clip(image, 0, 1, out=image)
     # Faster
     image[image < 0] = 0
     image[image > 1] = 1
