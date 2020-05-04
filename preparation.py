@@ -229,13 +229,22 @@ def cifar_wrapper(f, rescale=1/255):
 
         # Scale to [0, 1]
         # image /= 255
+        # print(np.amin(image), np.amax(image), flush=True)
         image *= rescale
+        # pad = 0.02  # Allow some tolerance in unprocessed images
+        # assert 0 - pad <= np.amin(image), f"Min = {np.amin(image)}"
+        # assert np.amax(image) <= 1 + pad, f"Max = {np.amax(image)}"
+        # assert np.amax(image) > 0.5
         assert 0 <= np.amin(image), f"Min = {np.amin(image)}"
         assert np.amax(image) <= 1, f"Max = {np.amax(image)}"
-        # assert np.amax(image) > 0.5
+        # image[image < 0] = 0
+        # image[image > 1] = 1
 
         # Assume this expects 2D arrays (224, 224) of RGB values in the range [0, 1]
         perturbed = f(np.squeeze(image))
+        
+        assert 0 <= np.amin(perturbed), f"Min = {np.amin(perturbed)}"
+        assert np.amax(perturbed) <= 1, f"Max = {np.amax(perturbed)}"
 
         assert perturbed.dtype in [np.float16, np.float32, np.float64]
         if perturbed.ndim == 3 and perturbed.shape[-1] > 1:
