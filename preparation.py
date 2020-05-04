@@ -151,7 +151,7 @@ def get_perturbations(n_levels=11):
 
 
 def get_noise_preprocessor(name, function=None, level=None, contrast_level=1,
-                           rng=None, rescale=1/255):
+                           bg_grey=None, rng=None, rescale=1/255):
     
     if name == "Uniform":
         perturbation_fn = functools.partial(function, width=level, 
@@ -160,7 +160,7 @@ def get_noise_preprocessor(name, function=None, level=None, contrast_level=1,
         perturbation_fn = functools.partial(function, p=level, 
                                             contrast_level=contrast_level, rng=rng)
     elif name in ["High Pass", "Low Pass"]:
-        perturbation_fn = functools.partial(function, std=level, bg_grey=mean/255)
+        perturbation_fn = functools.partial(function, std=level, bg_grey=bg_grey)
     elif name == "Contrast":
         perturbation_fn = functools.partial(function, contrast_level=level)    
     elif name == "Phase Scrambling":
