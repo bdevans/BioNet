@@ -379,6 +379,8 @@ if data_set == 'CIFAR10' and colour == 'grayscale':
     else:
         print(f'Uncached interpolation method: {interpolation}')
         recalculate_statistics = True
+    image[image < 0] = 0
+    image[image > 255] = 255
 else:
     recalculate_statistics = True
 
