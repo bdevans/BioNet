@@ -374,13 +374,17 @@ if data_set == 'CIFAR10' and colour == 'grayscale':
         mean = 122.61930353949222
         std = 60.99213660091195
     elif interpolation == cv2.INTER_LANCZOS4:
-        mean = 122.6172103881836
-        std = 60.89457321166992
+        # Without clipping
+        # mean = 122.6172103881836
+        # std = 60.89457321166992
+        # After clipping
+        mean = 122.61385345458984
+        std = 60.87860107421875
     else:
         print(f'Uncached interpolation method: {interpolation}')
         recalculate_statistics = True
-    image[image < 0] = 0
-    image[image > 255] = 255
+    x_train[x_train < 0] = 0
+    x_train[x_train > 255] = 255
 else:
     recalculate_statistics = True
 
