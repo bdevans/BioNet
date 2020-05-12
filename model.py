@@ -348,13 +348,17 @@ if upscale:
                                                     interpolation=interpolation)
         del x_train
         x_train = x_train_interp
+        x_train[x_train < 0] = 0
+        x_train[x_train > 255] = 255
 
         x_test_interp = np.zeros(shape=(x_test.shape[0], *image_shape), dtype=np.float16)
         for i, image in enumerate(x_test):
             x_test_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
                                                     interpolation=interpolation)
         del x_test
-        x_test = x_test_interp
+        x_test = x_test_interp        
+        x_test[x_test < 0] = 0
+        x_test[x_test > 255] = 255
     else:
         # Equivalent to cv2.INTER_NEAREST (or PIL.Image.NEAREST)
         x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
@@ -383,8 +387,6 @@ if data_set == 'CIFAR10' and colour == 'grayscale':
     else:
         print(f'Uncached interpolation method: {interpolation}')
         recalculate_statistics = True
-    x_train[x_train < 0] = 0
-    x_train[x_train > 255] = 255
 else:
     recalculate_statistics = True
 
@@ -459,11 +461,21 @@ print('=' * 80)  # Build/load model
 print(f"Creating {model_name}...", flush=True)
 # Create the model
 
+from all_cnn.networks import allcnn
+
+# get_all_cnn = functools.partial(allcnn, image_shape=image_shape, n_classes=n_classes)
+
+# @functools.wraps(allcnn)
+def get_all_cnn(weights=None, include_top=True, classes=n_classes, image_shape=image_shape):
+    # model = functools.partial(allcnn, image_shape=image_shape, n_classes=n_classes)
+    return allcnn(image_shape=image_shape, n_classes=n_classes)
+
 model_base = {'vgg16': tf.keras.applications.vgg16.VGG16, 
               'vgg19': tf.keras.applications.vgg19.VGG19,
               'resnet': tf.keras.applications.resnet_v2.ResNet50V2,
               'mobilenet': tf.keras.applications.mobilenet_v2.MobileNetV2, # MobileNetV2
-              'inception': tf.keras.applications.inception_v3.InceptionV3}
+              'inception': tf.keras.applications.inception_v3.InceptionV3,
+              'allcnn': get_all_cnn}
 # ResNet50, Inception V3, and Xception
 
 model = model_base[base.lower().replace('-', '')](weights=weights, 
@@ -548,8 +560,8 @@ else:
         if args['log']:
             # Create a tensorboard callback
             # logdir = '/work/logs/scalars/' + datetime.now().strftime("%Y%m%d-%H%M%S")
-            logdir = os.path.join(logs_dir, 'scalars', f'{datetime.now():%Y%m%d-%H%M%S}')
-            tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=logdir, update_freq=2048)
+            logdir = os.path.join(logs_dir, 'scalars', model_name)  # f'{datetime.now():%Y%m%d-%H%M%S}')
+            tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=logdir, histogram_freq=5, update_freq='epoch')  # 2048)
             callbacks.append(tensorboard_cb)
 
         resume_training = False
