@@ -1,3 +1,5 @@
+import os
+import functools
 from pprint import pprint
 
 from matplotlib import pyplot as plt
@@ -5,9 +7,12 @@ import seaborn as sns
 import numpy as np
 from scipy import signal
 import cv2
+# import tensorflow as tf
 from tensorflow.keras import backend as K
 
 from GaborNet.utils import calc_sigma, calc_lambda  # calc_bandwidth,
+from GaborNet.preparation import (cifar_wrapper, sanity_check, 
+                                  invert_luminance, get_noise_preprocessor)
 
 
 def plot_accuracy(history, chance=None, filename=None, ax=None, figsize=(12, 8)):
@@ -343,3 +348,123 @@ def plot_dog_filters():
 
     # print(f"C: {channel}; sigma_c: {float(sigma):.1f}; r_sigma: {sig_ratio:.3f}; [{np.amin(dog):.5f}, {np.amax(dog):.5f}], Sum: {np.sum(dog):.5}", end='')
     pass
+
+
+def plot_image_predictions(label, models, top_k=3, params=None, gpu=None):
+
+    # label = 'long'
+    # models = [f'Low-pass_VGG19_{n}' for n in range(1, 2)]
+
+    
+    # params = {'ksize': (63, 63),
+    #           'sigmas': [8]}
+
+    test_sets = ['line_drawings', 'silhouettes', 'contours', 'scharr']
+    luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma
+    n_samples = 10
+    n_classes = 10
+    rescale = 1/255
+    fig_sf = 2
+
+
+    def get_predictions(file):
+        classes = ['airplane', 'automobile', 'bird', 'cat', 'deer',
+                   'dog', 'frog', 'horse', 'ship', 'truck']
+        probabilities = np.loadtxt(file, delimiter=',')
+        rankings = np.argsort(probabilities, axis=1)
+        predictions = []
+        for r_image, p_image in zip(rankings, probabilities):
+            # Descending order [::-1]
+            predictions.append({classes[c]: p_image[c] for c in r_image[::-1]})
+        return predictions
+
+    if params is not None:
+        if gpu is not None:
+            gpus = tf.config.experimental.list_physical_devices('GPU')
+            tf.config.experimental.set_visible_devices(gpus[gpu], 'GPU')
+
+        kernel_size = params['ksize']
+        kernels = []
+        for sigma in params['sigmas']:
+            kern_x = cv2.getGaussianKernel(kernel_size[0], sigma)
+            kern_y = cv2.getGaussianKernel(kernel_size[1], sigma)
+            kern = np.outer(kern_x, kern_y)
+            kern /= np.sum(kern)
+            kern = kern.astype('float32')  # HACK
+            if gpu is not None:
+                kern = K.expand_dims(kern, -1)
+            kernels.append(kern)
+
+    for test_set in test_sets:
+        root = f'/work/data/{test_set}/'
+
+        for invert_test_images in [False, True]:
+            if invert_test_images:
+    #             prep_image = cifar_wrapper(functools.partial(invert_luminance, level=1), rescale=1)
+                prep_image = get_noise_preprocessor("Invert", invert_luminance, level=1, rescale=rescale)
+                annotated_test_set = f'{test_set}_inverted'
+            else:
+    #             prep_image = cifar_wrapper(sanity_check, rescale=1)
+                prep_image = get_noise_preprocessor("None", rescale=rescale)
+                annotated_test_set = f'{test_set}'
+
+            for model in models:
+                predictions = get_predictions(f'/work/results/{label}/predictions/{model}_{annotated_test_set}.csv')
+
+                fig, axes = plt.subplots(nrows=n_classes, ncols=n_samples, 
+                                         figsize=(fig_sf*n_samples, fig_sf*n_classes))
+                i = 0
+                for c_ind, category in enumerate(sorted(os.listdir(root))):
+                    for s_ind, img in enumerate(sorted(os.listdir(os.path.join(root, category)))):
+                        if annotated_test_set.startswith('scharr') and s_ind >= 10:
+                            break
+                        full_path = os.path.join(root, category, img)
+                #         image = np.squeeze(prep_image(plt.imread(full_path)[..., np.newaxis]*255))/255
+                        image = plt.imread(full_path) * 255
+                        if image.shape == (224, 224):
+                            image = image[..., np.newaxis]
+                        if image.shape == (224, 224, 3):
+                            image = np.dot(image, luminance_weights)[..., np.newaxis]
+                        image = np.squeeze(prep_image(image))
+
+                        if params is not None:
+                            if gpu is None:
+                                fimg = signal.convolve2d(image, kernels[0], mode='same')
+                            else:
+                                kernels = K.stack(kernels, axis=-1)
+                                kernels = K.expand_dims(kernels, -1)
+                                kernels = K.expand_dims(kernels, -1)
+                                image = K.expand_dims(image, -1)
+                                fimg = K.conv2d(image, kernels, padding='same')
+                                fimg = fimg.numpy().squeeze()
+
+                            image = fimg
+
+                        axes[c_ind, s_ind].imshow(image, cmap='gray', vmin=0, vmax=255)
+                        axes[c_ind, s_ind].set_xticks([])
+                        axes[c_ind, s_ind].set_yticks([])
+                        axes[c_ind, s_ind].get_xaxis().set_visible(False)
+                        axes[c_ind, s_ind].get_yaxis().set_visible(False)
+                        axes[c_ind, s_ind].set_axis_off()
+
+                        annotations = []
+                        for c_label, prob in list(predictions[i].items())[:top_k]:
+                            annotations.append(f'{c_label}: {prob:04.1%}')
+                        if annotations[0].startswith(category):
+                            colour = 'g'
+                        else:
+                            colour = 'r'
+                        bound = {'fc': colour, 'boxstyle': 'round,pad=.5', 'alpha': 0.5}
+                        axes[c_ind, s_ind].text(216, 8, '\n'.join(annotations), 
+                                                va='top', ha='right', 
+                                                fontsize='xx-small', bbox=bound)
+
+                        if c_ind == 0:
+                            axes[s_ind, c_ind].set_ylabel(category.capitalize())
+                        i += 1
+
+                # plt.axis('off')
+                fig.subplots_adjust(0.02,0.02,0.98,0.98)
+                output = f'/work/results/{label}/filtered_{test_set}{"_invert" if invert_test_images else ""}_{model}.png'
+                fig.savefig(output)
+                f"Created figure: {output}"
