@@ -215,7 +215,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                 x = Conv2D(n_kernels, params['ksize'], padding='same', 
                            activation='relu', use_bias=True,
                         #    activation=None, use_bias=False,
-                           name=f"{filter_type}_conv",
+                           name=f"{filter_type.lower()}_conv",
                            kernel_initializer=kernel_initializer)(x)
                 # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
 
