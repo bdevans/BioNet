@@ -481,9 +481,7 @@ model_base = {'vgg16': tf.keras.applications.vgg16.VGG16,
 model = model_base[base.lower().replace('-', '')](weights=weights, 
                                                   include_top=True, 
                                                   classes=1000)
-# model = tf.keras.applications.vgg16.VGG16(weights=weights, 
-#                                             include_top=True, 
-#                                             classes=1000)
+
 model = utils.substitute_layer(model, filter_params, 
                                filter_type=convolution,
                                input_shape=image_size, 
