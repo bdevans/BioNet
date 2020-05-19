@@ -558,7 +558,7 @@ else:
         if args['log']:
             # Create a tensorboard callback
             # logdir = '/work/logs/scalars/' + datetime.now().strftime("%Y%m%d-%H%M%S")
-            logdir = os.path.join(logs_dir, 'scalars', model_name)  # f'{datetime.now():%Y%m%d-%H%M%S}')
+            logdir = os.path.join(logs_dir, 'scalars', f'{model_name}-{datetime.now():%Y%m%d-%H%M%S}')
             tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=logdir, histogram_freq=5, update_freq='epoch')  # 2048)
             callbacks.append(tensorboard_cb)
 
