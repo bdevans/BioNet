@@ -375,7 +375,7 @@ def plot_image_predictions(label, models, top_k=3, params=None, gpu=None):
         predictions = []
         for r_image, p_image in zip(rankings, probabilities):
             # Descending order [::-1]
-            predictions.append({classes[c]: p_image[c] for c in r_image[::-1]})
+            predictions.append({classes[c]: p_image[c] for c in reversed(r_image)})
         return predictions
 
     if params is not None:
