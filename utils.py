@@ -197,7 +197,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
             x = inp
             print(f"{config['shape']}")
         elif ind == replace_layer and params is not None:  # Replace convolutional layer
-            print(f"Replacing layer {ind}: '{layer.name}' --> '{filter_type}_conv'...")
+            print(f"Replacing layer {ind}: '{layer.name}' --> '{filter_type.lower()}_conv'...")
             if use_initializer:
                 if filter_type.lower() == 'gabor':
                     n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
@@ -225,7 +225,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                 # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
                 tensor = get_gabor_tensor(**params)
                 x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
-                           name=f"{filter_type}_conv")(x)
+                           name=f"{filter_type.lower()}_conv")(x)
         # elif ind == replace_layer + 1 and params is not None:  # Replace next layer
         #     # Check input_shape matches output_shape?
         #     # x = Conv2D(**layers[layer].get_config())(x)
