@@ -226,11 +226,11 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                 tensor = get_gabor_tensor(**params)
                 x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
                            name=f"{filter_type}_conv")(x)
-        elif ind == replace_layer + 1 and params is not None:  # Replace next layer
-            # Check input_shape matches output_shape?
-            # x = Conv2D(**layers[layer].get_config())(x)
-            x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
-                                             'config': layer.get_config()})(x)
+        # elif ind == replace_layer + 1 and params is not None:  # Replace next layer
+        #     # Check input_shape matches output_shape?
+        #     # x = Conv2D(**layers[layer].get_config())(x)
+        #     x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
+        #                                      'config': layer.get_config()})(x)
         else:
             # x = layer(x)
             x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
