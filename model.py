@@ -400,7 +400,7 @@ print(f'Training statistics: mean={mean}; std={std}')
 
 # Save metadata
 sim = {'data_set': data_set,
-       'classes': n_classes,
+       'n_classes': n_classes,
        'train': train,
        'epochs': epochs,
        'optimizer': optimizer,
