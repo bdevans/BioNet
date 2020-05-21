@@ -486,11 +486,14 @@ model_base = {'vgg16': tf.keras.applications.vgg16.VGG16,
               'allcnn': get_all_cnn}
 # ResNet50, Inception V3, and Xception
 
+# input_tensor = Input(shape=image_shape, name='input_1', dtype='float16')
 if weights is None:
     output_classes = n_classes
 else:
     output_classes = 1000  # Default
 model = model_base[base.lower().replace('-', '')](weights=weights, 
+                                                #   input_tensor=input_tensor,
+                                                  input_shape=image_shape,
                                                   include_top=True, 
                                                   classes=output_classes)
 
