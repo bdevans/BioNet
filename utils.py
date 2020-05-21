@@ -3,6 +3,7 @@ This module contains help functions and general utilities for building custom co
 """
 
 import os
+import json
 from pprint import pprint
 
 import numpy as np
@@ -39,6 +40,12 @@ from tensorflow.python.framework import dtypes
 #     config.gpu_options.per_process_gpu_memory_fraction = 1
 #     config.gpu_options.visible_device_list = "0"
 #     set_session(tensorflow.Session(config=config))
+
+
+def get_simulation_params(sim_set, model_name, models_dir='/work/models'):
+    with open(os.path.join(models_dir, sim_set, model_name, 'simulation.json'), 'r') as fh:
+        sim = json.load(fh)
+    return sim
 
 
 def load_images(path):
