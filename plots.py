@@ -98,7 +98,7 @@ def plot_history(history, chance=None, metrics=None, filename=None, figsize=(12,
     nrows = int(include_acc) + int(include_loss) + int(include_other)
     assert nrows > 0
     if figsize is None:
-        width, height = 12, 6
+        width, height = 8, 3
         figsize = (width, height*nrows)
 
     fig, ax = plt.subplots(nrows=nrows, ncols=1, sharex=True, squeeze=True, figsize=figsize)
