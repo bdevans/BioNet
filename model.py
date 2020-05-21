@@ -486,9 +486,13 @@ model_base = {'vgg16': tf.keras.applications.vgg16.VGG16,
               'allcnn': get_all_cnn}
 # ResNet50, Inception V3, and Xception
 
+if weights is None:
+    output_classes = n_classes
+else:
+    output_classes = 1000  # Default
 model = model_base[base.lower().replace('-', '')](weights=weights, 
                                                   include_top=True, 
-                                                  classes=1000)
+                                                  classes=output_classes)
 
 model = utils.substitute_layer(model, filter_params, 
                                filter_type=convolution,
@@ -496,7 +500,7 @@ model = utils.substitute_layer(model, filter_params,
                                input_shape=image_size, 
                                colour_input=colour, 
                                use_initializer=use_initializer)
-if n_classes != 1000:
+if n_classes != output_classes:  # 1000:
     model = utils.substitute_output(model, n_classes=n_classes)
 
 opt_args = {'lr': lr, 'decay': decay}
