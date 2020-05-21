@@ -492,6 +492,7 @@ model = model_base[base.lower().replace('-', '')](weights=weights,
 
 model = utils.substitute_layer(model, filter_params, 
                                filter_type=convolution,
+                               replace_layer=1,
                                input_shape=image_size, 
                                colour_input=colour, 
                                use_initializer=use_initializer)
