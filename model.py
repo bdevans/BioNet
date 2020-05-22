@@ -516,6 +516,7 @@ model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['acc'])
 if verbose:
     model.summary()
 
+# TODO: Move to new SavedModel format
 model_output_dir = os.path.join(models_dir, label, model_name)
 os.makedirs(model_output_dir, exist_ok=True)
 full_path_to_model = os.path.join(model_output_dir, f"{epochs:03d}_epochs")

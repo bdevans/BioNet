@@ -125,10 +125,13 @@ def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None):
                 lambd = calc_lambda(sigma, b)
                 for gamma in gammas:
                     for psi in psis:
-                        params = {'ksize': ksize, 'sigma': sigma,
-                                  'theta': theta, 'lambd': lambd,
-                                  'gamma': gamma, 'psi': psi}
-                        gf = cv2.getGaborKernel(**params, ktype=cv2.CV_32F)
+                        # params = {'ksize': ksize, 'sigma': sigma,
+                        #           'theta': theta, 'lambd': lambd,
+                        #           'gamma': gamma, 'psi': psi}
+                        # gf = cv2.getGaborKernel(**params, ktype=cv2.CV_32F)
+                        gf = cv2.getGaborKernel(ksize, sigma, theta, 
+                                                lambd, gamma, psi, 
+                                                ktype=cv2.CV_32F)
                         gf = K.expand_dims(gf, -1)
                         gabors.append(gf)
     assert len(gabors) == n_kernels
@@ -208,6 +211,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                 raise UserError(f"Unknown colour_input: {colour_input}")
             del config['batch_input_shape']
             inp = Input(**config)
+            # inp = layer
             x = inp
             print(f"{config['shape']}")
         elif ind == replace_layer and params is not None:  # Replace convolutional layer
@@ -251,6 +255,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                                              'config': layer.get_config()})(x)
         # print(x.shape)
 
+    # del model
     model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
     if use_initializer:
         # Freeze weights of kernels
@@ -303,16 +308,29 @@ def substitute_output(model, n_classes=16):
 class GaborInitializer(Initializer):
     """Gabor kernel initializer class."""
 
-    def __init__(self, params, dtype=dtypes.float32):
-        self.dtype = dtypes.as_dtype(dtype)
-        self.params = params
-        # self.n_kernels = self.calc_n_kernels(params)
+    # def __init__(self, params, dtype=dtypes.float32):
+    #     self.dtype = dtypes.as_dtype(dtype)
+    #     self.params = params
+    #     # self.n_kernels = self.calc_n_kernels(params)
     
-    def calc_n_kernels(params):
-        return len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
-                                 * len(params['gammas']) * len(params['psis'])
+    def __init__(self, ksize, sigmas, bs, gammas, thetas, psis):
+        # TODO: Deprecate ksize in (initialisation of) filter parameters
+        if isinstance(ksize, (int, float)):
+            self.ksize = (ksize, ksize)
+        else:
+            self.ksize = tuple(ksize)
+        self.sigmas = sigmas
+        self.bs = bs
+        self.gammas = gammas
+        self.thetas = thetas
+        self.psis = psis
+        self.n_kernels = len(sigmas) * len(bs) * len(gammas) * len(thetas) * len(psis)
+    
+    # def calc_n_kernels(params):
+    #     return len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
+    #                              * len(params['gammas']) * len(params['psis'])
 
-    def __call__(self, shape, dtype=None, partition_info=None):
+    def __call__(self, shape, dtype=None):
         """Returns a tensor object initialized as specified by the initializer.
         Args:
             shape: Shape of the tensor.
@@ -322,7 +340,14 @@ class GaborInitializer(Initializer):
             tensor.
         """
         # return get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None)
-        return get_gabor_tensor(**self.params)
+        # return get_gabor_tensor(**self.params)
+        if shape is None:
+            ksize = self.ksize
+        else:
+            ksize = tuple(shape[:2])
+            assert self.n_kernels == shape[-1]
+        return get_gabor_tensor(ksize, self.bs, self.sigmas, 
+                                self.thetas, self.gammas, self.psis)
 
     def get_config(self):
         """Returns the configuration of the initializer as a JSON-serializable dict.
@@ -330,7 +355,14 @@ class GaborInitializer(Initializer):
         A JSON-serializable Python dict.
         """
         # return {"dtype": self.dtype.name ...}
-        return self.params
+        # return self.params
+        return {'ksize': self.ksize,
+                'sigmas': self.sigmas,
+                'bs': self.bs,
+                'gammas': self.gammas,
+                'thetas': self.thetas,
+                'psis': self.psis
+                }
 
     
 # from preparation import low_pass_filter
@@ -338,11 +370,18 @@ class GaborInitializer(Initializer):
 class LowPassInitializer(Initializer):
     """Low Pass filter Initializer class."""
 
-    def __init__(self, params, dtype=dtypes.float32):
-        self.dtype = dtypes.as_dtype(dtype)
-        self.params = params
+    def __init__(self, ksize, sigmas):  #params, dtype=dtypes.float32):
+        # self.dtype = dtypes.as_dtype(dtype)
+        # self.params = params
+        # TODO: Deprecate ksize in (initialisation of) filter parameters
+        if isinstance(ksize, (int, float)):
+            self.ksize = (ksize, ksize)
+        else:
+            self.ksize = tuple(ksize)
+        self.sigmas = sigmas
+        self.n_kernels = len(self.sigmas)
 
-    def __call__(self, shape, dtype=None, partition_info=None):
+    def __call__(self, shape, dtype=None):  #, partition_info=None):
         """Returns a tensor object initialized as specified by the initializer.
         Args:
             shape: Shape of the tensor.
@@ -352,7 +391,14 @@ class LowPassInitializer(Initializer):
             tensor.
         """
         
-        kernel_size = self.params['ksize']
+        if dtype is None:
+            dtype = 'float32'  # floatx()
+        # kernel_size = self.params['ksize']
+        if shape is None:
+            kernel_size = self.ksize
+        else:
+            kernel_size = tuple(shape[:2])
+            assert self.n_kernels == shape[-1]
 #         assert kernel_size == shape[0] == shape[1]
 #         sigma = self.params['sigma']
 
@@ -366,12 +412,14 @@ class LowPassInitializer(Initializer):
         
         # Method 2
         kernels = []
-        for sigma in self.params['sigmas']:
+        for sigma in self.sigmas:  # self.params['sigmas']:
             kern_x = cv2.getGaussianKernel(kernel_size[0], sigma)
             kern_y = cv2.getGaussianKernel(kernel_size[1], sigma)
             kern = np.outer(kern_x, kern_y)
             kern /= np.sum(kern)
             kern = kern.astype('float32')  # HACK
+            # kern = kern.astype(dtypes.as_dtype(dtype))
+            # kern = kern.astype(dtype)
             kern = K.expand_dims(kern, -1)
             kernels.append(kern)
         return K.stack(kernels, axis=-1)
@@ -383,7 +431,9 @@ class LowPassInitializer(Initializer):
         A JSON-serializable Python dict.
         """
         # return {"dtype": self.dtype.name ...}
-        return self.params
+        # return self.params
+        return {'ksize': self.ksize,
+                'sigmas': self.sigmas}
 
 
 class KernelInitializer(Initializer):
