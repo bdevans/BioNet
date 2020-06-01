@@ -155,17 +155,33 @@ def convolve_tensor(x, kernel_tensor=None):
     return K.conv2d(x, kernel_tensor, padding='same')
 
 
+def find_conv_layer(model, first=True):
+    if first:
+        layers = model.layers
+    else:
+        layers = reversed(model.layers)
+    for ind, layer in enumerate(layers):
+        if isinstance(layer, tf.keras.layers.Conv2D):
+        # if len(layer.output_shape) == 4:
+            print(f"Found first convolutional layer {ind}: {layer.name}")
+            layer_name = layer.name
+            layer_ind = ind
+            break
+    return layer_name, layer_ind
+
+
 def substitute_layer(model, params, filter_type='gabor', replace_layer=1, 
                      input_shape=None, colour_input='rgb', 
                      use_initializer=False, verbose=0):
 
     if replace_layer is None:
         # Attempt to find the first convolutional layer
-        for ind, layer in enumerate(model.layers):
-            if isinstance(layer, tf.keras.layers.Conv2D):
-                print(f"Found first convolutional layer {ind}: {layer.name}")
-                replace_layer = ind
-                break
+        # for ind, layer in enumerate(model.layers):
+        #     if isinstance(layer, tf.keras.layers.Conv2D):
+        #         print(f"Found first convolutional layer {ind}: {layer.name}")
+        #         replace_layer = ind
+        #         break
+        _, replace_layer = find_conv_layer(model)
     assert isinstance(replace_layer, int)
     assert 0 < replace_layer < len(model.layers)
 
