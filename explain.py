@@ -95,8 +95,8 @@ def plot_grad_cam(data_set, model_name, test_set=None, image_weight=0.7, fig_sf=
             f"Created figure: {output}"
 
 
-def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2, verbose=0):
-        
+def get_activations(image_path, data_set, model_name, layer_name=None, verbose=0):
+
     model = load_model(data_set, model_name, verbose=verbose)
     # Model to examine
     # model = tf.keras.applications.resnet50.ResNet50(weights='imagenet', include_top=True)
@@ -144,25 +144,30 @@ def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2
     activations_model.compile(optimizer='adam', loss='categorical_crossentropy')
 
     # Get their outputs
-    activations_1 = activations_model.predict(np.array([img]))
+    return activations_model.predict(np.array([img]))
 
-    shape = activations_1.shape
+
+def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2, verbose=0):
+    
+    activations = get_activations(image_path, data_set, model_name, layer_name)
+    
+    shape = activations.shape
     # np.squeeze(activations_1)
     # print(shape)
     nrows = int(np.sqrt(shape[-1]))
     ncols = int(np.ceil(shape[-1]/nrows))
     # print(nrows, ncols)
 
-    if verbose:
-        plt.imshow(np.squeeze(img), cmap="gray")
-        plt.gca().set_axis_off()
+    # if verbose:
+    #     plt.imshow(np.squeeze(img), cmap="gray")
+    #     plt.gca().set_axis_off()
 
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, 
                              sharex=True, sharey=True, squeeze=False,
                              figsize=(ncols*fig_sf, nrows*fig_sf))
 
     for feat, ax in enumerate(axes.ravel()):
-        ax.imshow(activations_1[0, :, :, feat])
+        ax.imshow(activations[0, :, :, feat])
         ax.set_xticks([])
         ax.set_yticks([])
         ax.get_xaxis().set_visible(False)
