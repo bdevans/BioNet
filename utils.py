@@ -4,6 +4,7 @@ This module contains help functions and general utilities for building custom co
 
 import os
 import json
+# import subprocess
 from pprint import pprint
 
 import numpy as np
@@ -236,10 +237,10 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                 if filter_type.lower() == 'gabor':
                     n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
                                                   * len(params['gammas']) * len(params['psis'])
-                    kernel_initializer = GaborInitializer(params)
+                    kernel_initializer = GaborInitializer(**params)
                 elif filter_type.lower() == 'low-pass':
                     n_kernels = len(params['sigmas'])
-                    kernel_initializer = LowPassInitializer(params)
+                    kernel_initializer = LowPassInitializer(**params)
                 # When using this layer as the first layer in a model, provide the keyword argument 
                 # input_shape (tuple of integers, does not include the batch axis), 
                 # e.g. input_shape=(128, 128, 3) for 128x128 RGB pictures in data_format="channels_last".
@@ -266,7 +267,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
         #     x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
         #                                      'config': layer.get_config()})(x)
         else:
-            # x = layer(x)
+#             x = layer(x)
             x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
                                              'config': layer.get_config()})(x)
         # print(x.shape)
