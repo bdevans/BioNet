@@ -487,7 +487,7 @@ class KernelInitializer(Initializer):
         return self.params
 
 
-def load_model(data_set, name):
+def load_model(data_set, name, verbose=0):
     # TODO: Check shape and dtype work
     # TODO: Restore optimizer state (and ReduceLR)
     path_to_model = f"/work/models/{data_set}/{name}"
@@ -514,13 +514,16 @@ def load_model(data_set, name):
         custom_objects = {'LowPassInitializer': LowPassInitializer(**filter_params)}
     else:
         custom_objects = None
-    print("Parameters: ")
-    pprint(filter_params)
+    if verbose:
+        print("Parameters: ")
+        pprint(filter_params)
     with open(f"{path_to_model}/{stub}.json", "r") as sf:
         config = sf.read()
     # with CustomObjectScope(custom_objects):
     model = tf.keras.models.model_from_json(config, custom_objects)
     model.load_weights(f"{path_to_model}/{stub}_weights.h5")
-    model.summary()
+    if verbose:
+        model.summary()
 
     return model
+
