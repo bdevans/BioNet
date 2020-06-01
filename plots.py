@@ -1,11 +1,13 @@
 import os
 import functools
+import subprocess
 from pprint import pprint
 
 from matplotlib import pyplot as plt
+# import PIL.Image
 import seaborn as sns
 import numpy as np
-from scipy import signal
+from scipy import signal, fftpack
 import cv2
 # import tensorflow as tf
 from tensorflow.keras import backend as K
@@ -13,6 +15,68 @@ from tensorflow.keras import backend as K
 from GaborNet.utils import calc_sigma, calc_lambda  # calc_bandwidth,
 from GaborNet.preparation import (cifar_wrapper, sanity_check, 
                                   invert_luminance, get_noise_preprocessor)
+
+
+luminance_weights = np.array([0.299, 0.587, 0.114])
+
+def inspect_image(image_path):
+    
+    figsize = (8,8)
+    
+    if isinstance(image_path, str):
+        try:
+            print(subprocess.check_output(["identify", image_path]))
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                # handle file not found error.
+                print(f"File not found: {image_path}")
+                return
+            else:
+                # Something else went wrong while trying to run command
+                print("Program 'identify' not found!")
+                raise
+        image = plt.imread(image_path)
+    elif isinstance(image_path, np.ndarray):
+        image = image_path
+    else:
+        print("Error: Unknown image type!")
+
+    if image.ndim > 2:
+        if image.shape[-1] == 1:
+            image = np.squeeze(image)
+            n_channels = 1
+        else:
+            n_channels = image.shape[-1]
+    else:
+        n_channels = 1
+    print(f"Image shape: {image.shape}; channels: {n_channels}; "
+          f"scaling: [{np.amin(image)}, {np.amax(image)}]; "
+          f"mean={np.mean(image):.3}; std={np.std(image):.3}")
+    
+    # img = PIL.Image.open(image_path)
+    # exif_data = img._getexif()
+    # print(exif_data)
+    
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=figsize)
+    immap = axes[0, 0].imshow(image, cmap="gray")
+    plt.colorbar(immap, ax=axes[0, 0])
+    axes[0, 0].set_title("Image")
+    
+    if n_channels == 3:
+        image = np.dot(image, luminance_weights)
+    fft2 = fftpack.fft2(image)
+    fftmap = axes[1, 0].imshow(np.log10(np.abs(fft2)))
+    plt.colorbar(fftmap, ax=axes[1, 0])
+    axes[1, 0].set_title("log10(abs(FFT2))")
+
+    # TODO: Plot histograms for each channel if there are more than one
+    # See: https://towardsdatascience.com/histograms-in-image-processing-with-skimage-python-be5938962935
+    bins = 128
+    axes[0, 1].hist(image.ravel(), bins=bins)
+    axes[0, 1].set_title("Luminance Histogram")
+    
+    axes[1, 1].hist(image.ravel(), bins=bins, cumulative=True)
+    axes[1, 1].set_title("Cumulative Luminance Histogram")
 
 
 def plot_accuracy(history, chance=None, filename=None, ax=None, figsize=(12, 8)):
