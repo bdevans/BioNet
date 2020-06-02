@@ -266,6 +266,7 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
                                 figsize=(ncols*fig_sf, nrows*fig_sf))
         filter_indices = range(int(shape[-1]))
         title_prefix = ""
+        plt.suptitle(f"{data_set}/{model_name}")
     else:
         # nrows = 1
         # ncols = 1
