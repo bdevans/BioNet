@@ -233,17 +233,11 @@ def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, fi
     return #(fig, axes)
 
 
-def plot_most_activating_features(data_set, model_name, layer=None, filter_index=0, 
-                                  epochs=100, step_size=1., ax=None):
+def plot_most_activating_features(data_set, model_name, layer=None, filter_index=None, 
+                                  epochs=100, step_size=1., ax=None, fig_sf=2):
 
     # stop_layer = 'flatten'
     # stop_layer = 'block3_conv1'
-
-    # Initiate random noise
-    input_img_data = np.random.random((1, 224, 224, 1))
-    input_img_data = (input_img_data - 0.5) * 20 #+ 128.
-    # Cast random noise from np.float64 to tf.float32 Variable
-    input_img_data = tf.Variable(tf.cast(input_img_data, tf.float32))
 
     # Create a connection between the input and the target layer
     model = load_model(data_set, model_name)
@@ -261,25 +255,48 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
     # nrows = stop_index-1  # len(model.layers)-1
     # fig, axes = plt.subplots(nrows=nrows, ncols=1, figsize=(3, 3*nrows))
     # fig = plt.figure()
-    if ax is None:
-        fig, ax = plt.subplots()
-    else:
-        fig = ax.figure
 
+    if filter_index is None:
+        shape = layer.output.shape
+        nrows = int(np.sqrt(shape[-1]))
+        ncols = int(np.ceil(shape[-1]/nrows))
+
+        fig, axes = plt.subplots(nrows=nrows, ncols=ncols, 
+                                sharex=True, sharey=True, squeeze=False,
+                                figsize=(ncols*fig_sf, nrows*fig_sf))
+        filter_indices = range(int(shape[-1]))
+        title_prefix = ""
+    else:
+        # nrows = 1
+        # ncols = 1
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+        axes = np.array([ax])
+        filter_indices = [filter_index]
+        title_prefix = f"{data_set}/{model_name}: "
     # for ax, layer in zip(axes.ravel(), model.layers[1:stop_index]):
         
     submodel = tf.keras.models.Model([model.inputs[0]], [layer.output])
 
-    # Iterate gradient ascents
-    for _ in range(epochs):
-        with tf.GradientTape() as tape:
-            outputs = submodel(input_img_data)
-            loss_value = tf.reduce_mean(outputs[:, :, :, filter_index])
-        grads = tape.gradient(loss_value, input_img_data)
-        normalized_grads = grads / (tf.sqrt(tf.reduce_mean(tf.square(grads))) + 1e-5)
-        input_img_data.assign_add(normalized_grads * step_size)
-    cbmap = ax.imshow(np.squeeze(input_img_data.numpy()))
-    ax.set_title(f"{data_set}/{model_name}: {layer.name}[{filter_index}]")
-    fig.colorbar(cbmap, ax=ax)
+    for ax, filter_index in zip(axes.ravel(), filter_indices):
+        # Initiate random noise
+        input_img_data = np.random.random((1, 224, 224, 1))
+        input_img_data = (input_img_data - 0.5) * 20 #+ 128.
+        # Cast random noise from np.float64 to tf.float32 Variable
+        input_img_data = tf.Variable(tf.cast(input_img_data, tf.float32))
+        
+        # Iterate gradient ascents
+        for _ in range(epochs):
+            with tf.GradientTape() as tape:
+                outputs = submodel(input_img_data)
+                loss_value = tf.reduce_mean(outputs[:, :, :, filter_index])
+            grads = tape.gradient(loss_value, input_img_data)
+            normalized_grads = grads / (tf.sqrt(tf.reduce_mean(tf.square(grads))) + 1e-5)
+            input_img_data.assign_add(normalized_grads * step_size)
+        cbmap = ax.imshow(np.squeeze(input_img_data.numpy()))
+        ax.set_title(f"{title_prefix}{layer.name}[{filter_index}]")
+        fig.colorbar(cbmap, ax=ax)
     # input_img_data.numpy().shape
     # plt.imshow(np.squeeze(input_img_data.numpy()))
