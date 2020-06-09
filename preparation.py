@@ -9,12 +9,56 @@ from skimage.color import rgb2grey, grey2rgb
 from scipy.ndimage.filters import gaussian_filter
 from scipy import fftpack as fp
 from tensorflow.keras.applications.vgg19 import preprocess_input
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 _CHANNEL_MEANS = [103.939, 116.779, 123.68]  # BGR
 
 # L = R * 299/1000 + G * 587/1000 + B * 114/1000  # Used by Pillow.Image.convert('L')
 _LUMINANCE_MEAN = 123.68 * 0.299 + 116.779 * 0.587 + 103.939 * 0.114  # 117.378639
+
+
+
+def get_directory_generator(image_directory, #preprocessing_function=None, 
+                            rescale=1/255,  # invert=False, 
+                            mean=None, std=None, 
+                            image_size=(224, 224), colour='grayscale', 
+                            batch_size=64, shuffle=False, seed=None,
+                            interpolation='lanczos',
+                            save_to_dir=None, save_prefix=''):
+
+    # CIFAR10 preprocessing function
+    # if invert:
+    #     prep_func = get_noise_preprocessor("Invert", invert_luminance, level=1, rescale=rescale)
+    # else:
+    prep_func = get_noise_preprocessor("None", rescale=rescale)
+    data_gen = ImageDataGenerator(# rescale=255,
+                                preprocessing_function=prep_func,
+                                featurewise_center=True, 
+                                featurewise_std_normalization=True)
+
+    if interpolation.lower() == 'nearest':  # cv2.INTER_NEAREST):
+        mean = 122.61930353949222
+        std = 60.99213660091195
+    elif interpolation.lower() == 'lanczos':  # cv2.INTER_LANCZOS4:
+        mean = 122.61385345458984
+        std = 60.87860107421875
+    else:
+        print(f'Uncached interpolation method: {interpolation}')
+        recalculate_statistics = True
+    data_gen.mean = mean
+    data_gen.std = std
+    
+    gen_test = data_gen.flow_from_directory(image_directory,
+                                            target_size=image_size,
+                                            color_mode=colour,
+                                            batch_size=batch_size,
+                                            shuffle=False, seed=seed,
+                                            interpolation=interpolation,
+                                            save_to_dir=save_to_dir, 
+                                            save_prefix=save_prefix)
+    return gen_test
+
 
 def as_perturbation_fn(f):
     @functools.wraps(f)
