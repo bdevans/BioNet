@@ -419,6 +419,7 @@ class LowPassInitializer(Initializer):
 #         assert kernel_size == shape[0] == shape[1]
 #         sigma = self.params['sigma']
 
+        # https://stackoverflow.com/questions/29731726/how-to-calculate-a-gaussian-kernel-matrix-efficiently-in-numpy
         # Method 1
 #         # create nxn zeros
 #         inp = np.zeros((kernel_size, kernel_size))
@@ -526,4 +527,3 @@ def load_model(data_set, name, verbose=0):
         model.summary()
 
     return model
-
