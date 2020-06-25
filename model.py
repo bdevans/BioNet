@@ -647,10 +647,14 @@ else:
         #     initial_epoch = 0
         history = model.fit(gen_train,
                             epochs=epochs,
+                            # steps_per_epoch and steps_per_epoch are required due to a regression in TF 2.2
+                            # https://github.com/tensorflow/tensorflow/issues/37968
                             # steps_per_epoch=gen_train.n//batch,
+                            steps_per_epoch=len(gen_train),
                             callbacks=callbacks,
                             validation_data=gen_valid,
                             # validation_steps=gen_valid.n//batch,
+                            validation_steps=len(gen_valid),
                             shuffle=True,
                             max_queue_size=max_queue_size,
                             workers=workers,
@@ -708,14 +712,6 @@ elif isinstance(test_generalisation, bool):
 else:
     warnings.warn(f'Unknown generalisation test set type: {test_generalisation} ({type(test_generalisation)})!')
     test_sets = []
-
-# if test_generalisation or (isinstance(test_generalisation, str) and test_generalisation.lower() == 'all'):
-#     test_sets = all_test_sets
-# elif test_generalisation.lower() in all_test_sets:
-#     test_sets = [test_generalisation.lower()]
-# else:
-#     warnings.warn(f'Unknown generalisation test set: {test_generalisation}!')
-#     test_sets = []
 
 if test_generalisation:
     if invert_test_images:
@@ -791,6 +787,7 @@ for test_set in test_sets:
 
         metrics = model.evaluate(gen_test, 
                                  # steps=gen_test.n//batch,
+                                 steps=len(gen_test),
                                  verbose=1,
                                  max_queue_size=max_queue_size,
                                  workers=workers,
@@ -813,6 +810,7 @@ for test_set in test_sets:
             predictions = model.predict(gen_test, 
                                         verbose=1,
                                         # steps=gen_test.n//batch,
+                                        steps=len(gen_test),
                                         max_queue_size=max_queue_size,
                                         workers=workers,
                                         use_multiprocessing=use_multiprocessing)
@@ -976,11 +974,12 @@ for noise, noise_function, levels in noise_types:
 #                                            workers=workers)
         # This new method has a memory leak
         metrics = model.evaluate(gen_test, 
-                                # steps=gen_test.n//batch,
-                                verbose=0,
-                                max_queue_size=max_queue_size,
-                                workers=workers,
-                                use_multiprocessing=use_multiprocessing)
+                                 # steps=gen_test.n//batch,
+                                 steps=len(gen_test),
+                                 verbose=0,
+                                 max_queue_size=max_queue_size,
+                                 workers=workers,
+                                 use_multiprocessing=use_multiprocessing)
         # print(model.metrics_names)
         # print(f"{mod} metrics: {metrics}")
         t_elapsed = time.time() - t0
@@ -998,6 +997,7 @@ for noise, noise_function, levels in noise_types:
             predictions = model.predict(gen_test, 
                                         verbose=0,
                                         # steps=gen_test.n//batch,
+                                        steps=len(gen_test),
                                         max_queue_size=max_queue_size,
                                         workers=workers,
                                         use_multiprocessing=use_multiprocessing)
