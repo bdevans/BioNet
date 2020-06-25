@@ -193,7 +193,8 @@ if convolution.capitalize() == 'Gabor':
     mod = f'Gabor_{base}'
 elif convolution.capitalize() == 'Low-pass':
     params = {'ksize': (63, 63),
-              'sigmas': [8]}
+#               'sigmas': [8]
+              'sigmas': [1, 2, 4, 8]}
     mod = f'Low-pass_{base}'
 elif convolution.capitalize() == 'Original':
     params = None
@@ -207,7 +208,7 @@ else:
 
 filter_params = params
 
-    
+
 max_queue_size = 10
 workers = 12  # 4
 use_multiprocessing = False
