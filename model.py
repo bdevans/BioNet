@@ -743,14 +743,22 @@ for test_set in test_sets:
 #         else:
 #             rescale = 1/255  # 1
         rescale = 1/255
+
+        # Old method: create inverted images on the fly
+#         if invert:
+#             # prep_image = cifar_wrapper(functools.partial(invert_luminance, level=1),
+#             #                            rescale=rescale)
+#             prep_image = get_noise_preprocessor("Invert", invert_luminance, level=1, rescale=rescale)
+#         else:
+#             # prep_image = cifar_wrapper(sanity_check, rescale=rescale)
+#             prep_image = get_noise_preprocessor("None", rescale=rescale)
+
+        # New method: use the same preprocessor and load pre-inverted images
+        prep_image = get_noise_preprocessor("None", rescale=rescale)
         if invert:
-            # prep_image = cifar_wrapper(functools.partial(invert_luminance, level=1),
-            #                            rescale=rescale)
-            prep_image = get_noise_preprocessor("Invert", invert_luminance, level=1, rescale=rescale)
-        else:
-#             prep_image = None  # Error?!
-            # prep_image = cifar_wrapper(sanity_check, rescale=rescale)
-            prep_image = get_noise_preprocessor("None", rescale=rescale)
+            test_image_path = f"{test_image_path}_inverted"
+            assert os.path.isdir(test_image_path)
+
         data_gen = ImageDataGenerator(# rescale=255,
                                       preprocessing_function=prep_image,
                                       featurewise_center=True, 
