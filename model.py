@@ -475,9 +475,9 @@ from all_cnn.networks import allcnn
 # get_all_cnn = functools.partial(allcnn, image_shape=image_shape, n_classes=n_classes)
 
 # @functools.wraps(allcnn)
-def get_all_cnn(weights=None, include_top=True, classes=n_classes, image_shape=image_shape):
+def get_all_cnn(weights=None, include_top=True, classes=n_classes, input_shape=image_shape):
     # model = functools.partial(allcnn, image_shape=image_shape, n_classes=n_classes)
-    return allcnn(image_shape=image_shape, n_classes=n_classes)
+    return allcnn(image_shape=input_shape, n_classes=n_classes)
 
 model_base = {'vgg16': tf.keras.applications.vgg16.VGG16, 
               'vgg19': tf.keras.applications.vgg19.VGG19,
