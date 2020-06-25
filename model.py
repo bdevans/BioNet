@@ -92,8 +92,9 @@ parser.add_argument('--seed', type=int, default=42,
                     help='Random seed to use')
 parser.add_argument('-t', '--train', action='store_true', # type=bool, default=False,
                     help='Flag to train the model')
-parser.add_argument('--train_with_noise', action='store_true',
-                    help='Flag to train the model with noise-like masks')
+# This accompanying unfinished code was deleted in a single commit 25/6/20
+# parser.add_argument('--train_with_noise', action='store_true',
+#                     help='Flag to train the model with noise-like masks')
 parser.add_argument('--recalculate_statistics', action='store_true',
                     help='Flag to recalculate normalisation statistics over the training set')
 parser.add_argument('--epochs', type=int, default=20, required=False,
@@ -279,65 +280,13 @@ if image_path and os.path.isdir(image_path):
 
 # if test_image_path and os.path.isdir(test_image_path):
 
-
-
-
-# TODO: Finish or remove
-if args['train_with_noise']:
-    # Train the model with the noise-like masks
-    data_augmentation = False
-    data_root = '/work/data/pixel/large'
-    stimulus_set = 'static'
-    noise_types = ['Single-pixel']  # ['Original', 'Salt-and-pepper', 'Additive', 'Single-pixel']
-    test_conditions = ['Same', 'Diff', 'Orig']
-
-
-    data_path = os.path.join(data_root, stimulus_set, noise_type.replace('-', '_').lower())  # 'single_pixel')
-    train_path = os.path.join(data_path, 'train')
-
-    if os.path.isfile(os.path.join(train_path, 'x_train.npy')) and \
-        os.path.isfile(os.path.join(train_path, 'y_train.npy')) and not clean:
-        print(f'Loading {data_set}:{stimulus_set} data arrays.')
-        x_train = np.load(os.path.join(train_path, 'x_train.npy'))
-        y_train = np.load(os.path.join(train_path, 'y_train.npy'))
-        cat_dirs = [os.path.join(train_path, o) for o in os.listdir(train_path)
-                    if os.path.isdir(os.path.join(train_path, o))]
-        assert n_classes == len(cat_dirs)
-    else:
-        print(f'Loading {data_set}:{stimulus_set} image files.')
-        train_images, x_train, y_train = utils.load_images(train_path)
-        print(train_images.keys())
-        assert n_classes == len(train_images)
-        np.save(os.path.join(train_path, 'x_train.npy'), x_train)
-        np.save(os.path.join(train_path, 'y_train.npy'), y_train)
-
-    test_sets = []
-    for test_cond in test_conditions:
-        test_path = os.path.join(data_path, f"test_{test_cond.lower()}")
-        if os.path.isfile(os.path.join(test_path, 'x_test.npy')) and \
-            os.path.isfile(os.path.join(test_path, 'y_test.npy')) and not clean:
-            x_test = np.load(os.path.join(test_path, 'x_test.npy'))
-            y_test = np.load(os.path.join(test_path, 'y_test.npy'))
-        else:
-            test_images, x_test, y_test = load_images(test_path)
-            print(test_images.keys())
-            assert n_classes == len(test_images)
-            np.save(os.path.join(test_path, 'x_test.npy'), x_test)
-            np.save(os.path.join(test_path, 'y_test.npy'), y_test)
-        test_sets.append((x_test, y_test))
-    test_cond = "Orig"  # Use this for examining learning curves
-    x_test, y_test = test_sets[test_conditions.index("Orig")]  # Unpack default test set
-    # else:
-    #     sys.exit(f"Unknown data set requested: {data_set}")
-else:
-
     
-    # Set up stimuli
-    (x_train, y_train), (x_test, y_test) = cifar10.load_data()  # RGB format
-    x_train = np.expand_dims(np.dot(x_train, luminance_weights), axis=-1)
-    x_test = np.expand_dims(np.dot(x_test, luminance_weights), axis=-1)
-    y_train = to_categorical(y_train, num_classes=n_classes, dtype='uint8')
-    y_test = to_categorical(y_test, num_classes=n_classes, dtype='uint8')
+# Set up stimuli
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()  # RGB format
+x_train = np.expand_dims(np.dot(x_train, luminance_weights), axis=-1)
+x_test = np.expand_dims(np.dot(x_test, luminance_weights), axis=-1)
+y_train = to_categorical(y_train, num_classes=n_classes, dtype='uint8')
+y_test = to_categorical(y_test, num_classes=n_classes, dtype='uint8')
 
 # print('-' * 80)
 if upscale:
@@ -842,55 +791,6 @@ print("=" * 80)
 # Clear GPU memory
 # tf.keras.backend.clear_session()
 # sys.exit()
-
-
-
-
-
-
-# TODO: Finish or remove
-if args['train_with_noise']:
-
-    if label:  # len(label) > 0:
-        sim_set = f"{mod}_{label}_t{trial}_e{epochs}_s{seed}"
-    else:
-        sim_set = f"{mod}_t{trial}_e{epochs}_s{seed}"
-    sim_file = f"{sim_set}.json"
-    with open(os.path.join(results_dir, sim_file), "w") as sf:
-        json.dump(sim, sf, indent=4)
-
-    # rows = []
-
-    fieldnames = ['Trial', 'Model', 'Convolution', 'Base', 'Weights', 
-                  'Noise', 'Level', 'Loss', 'Accuracy']
-
-    results_file = os.path.join(results_dir, f"{sim_set}.csv")
-    with open(results_file, 'w') as results:
-        writer = csv.DictWriter(results, fieldnames=fieldnames)
-        writer.writeheader()
-
-    # cond_acc = {}
-    # cond_loss = {}
-    for test_cond, (x_test, y_test) in zip(test_conditions, test_sets):
-
-        metrics = model.evaluate(x=x_test, y=y_test, batch_size=batch)
-
-        row = {'Trial': trial, 'Model': mod, 
-               'Convolution': convolution, 'Base': base, 'Weights': weights,
-               'Noise': noise, 'Level': level,
-               'Loss': metrics[0], 'Accuracy': metrics[1]}
-        with open(results_file, 'a') as results:
-            writer = csv.DictWriter(results, fieldnames=fieldnames)
-            writer.writerow(row)
-        # rows.append(row)
-
-    # print("Saving metrics: ", model.metrics_names)
-    # with open(os.path.join(save_dir, f'{model_name}_CONDVALACC.json'), "w") as jf:
-    #     json.dump(cond_acc, jf)
-    # if save_loss:
-    #     with open(os.path.join(save_dir, f'{model_name}_CONDVALLOSS.json'), "w") as jf:
-    #         json.dump(cond_loss, jf)
-
 
 
 if not test_perturbations:
