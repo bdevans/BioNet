@@ -494,6 +494,8 @@ def load_model(data_set, name, verbose=0):
     path_to_model = f"/work/models/{data_set}/{name}"
     stub = "100_epochs"
 
+    if verbose:
+        print(f"Loading model: {path_to_model}", flush=True)
     sim = get_simulation_params(data_set, name)
     # Retrofit new variable names
     if 'convolution' in sim:
@@ -507,6 +509,8 @@ def load_model(data_set, name, verbose=0):
             convolution = 'Low-pass'
         else:
             convolution = 'Original'
+    if verbose > 1:
+        pprint(sim)
     filter_params = sim['filter_params']
 
     if convolution == 'Gabor':
@@ -518,8 +522,14 @@ def load_model(data_set, name, verbose=0):
     if verbose:
         print("Parameters: ")
         pprint(filter_params)
+        
     with open(f"{path_to_model}/{stub}.json", "r") as sf:
         config = sf.read()
+    if verbose > 1:
+        print("Model config: ")
+        pprint(config)
+        print("Custom objects: ")
+        pprint(custom_objects)
     # with CustomObjectScope(custom_objects):
     model = tf.keras.models.model_from_json(config, custom_objects)
     model.load_weights(f"{path_to_model}/{stub}_weights.h5")
