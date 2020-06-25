@@ -1,13 +1,17 @@
 import os
 import json
+from pprint import pprint
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import cv2
 from matplotlib import pyplot as plt
 from tf_explain.core.grad_cam import GradCAM
 
-from GaborNet.preparation import get_noise_preprocessor, invert_luminance
+from GaborNet.preparation import (get_directory_generator, 
+                                  get_noise_preprocessor, 
+                                  invert_luminance)
 from GaborNet.utils import load_model, find_conv_layer
 # from GaborNet.preparation import _CHANNEL_MEANS, _LUMINANCE_MEAN
 
@@ -16,6 +20,10 @@ luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma
 interpolation = cv2.INTER_LANCZOS4
 mean = 122.61385345458984
 std = 60.87860107421875
+train_stats = {
+    'nearest': (122.61930353949222, 60.99213660091195),
+    'lanczos': (122.61385345458984, 60.87860107421875)
+}
 
 image_dir = '/work/data'
 all_test_sets = ['line_drawings', 'silhouettes', 'contours', 'scharr']
@@ -95,56 +103,100 @@ def plot_grad_cam(data_set, model_name, test_set=None, image_weight=0.7, fig_sf=
             f"Created figure: {output}"
 
 
-def get_activations(image_path, data_set, model_name, layer_name=None, verbose=0):
+def get_activations(image_path, data_set, model_name, layer_id=None, verbose=0):
+
+    # data_root = '/work/data'
 
     model = load_model(data_set, model_name, verbose=verbose)
     # Model to examine
     # model = tf.keras.applications.resnet50.ResNet50(weights='imagenet', include_top=True)
     input_shape = model.input.get_shape().as_list()
+    if verbose:
+        print(f"Input shape: {input_shape}")
 
     # TODO
-    if layer_name is None:
+    if layer_id is None:
         (layer_name, layer_ind) = find_conv_layer(model)
-    elif isinstance(layer_name, str):
+        layer = model.get_layer(name=layer_id)
+        outputs = [layer.output]
+    elif isinstance(layer_id, str):
         # Name
-        pass
-    elif isinstance(layer_name, int):
+        layer_name = layer_id
+        layer = model.get_layer(name=layer_id)
+        # layer_ind
+        outputs = [layer.output]
+    elif isinstance(layer_id, int):
         # Index
-        pass
+        layer_ind = layer_id
+        layer = model.get_layer(index=layer_id)
+        layer_name = layer.name
+        outputs = [layer.output]
+    elif isinstance(layer_id, (list, tuple)):
+        # Assume list of indicies
+        outputs = [model.get_layer(index=layer_ind).output 
+                   for layer_ind in layer_id]
+        layer_name = ", ".join(map(str, layer_id))
     else:
-        print(f"Error! Unknown layer type: {layer_name} ({type(layer_name)})")
+        print(f"Error! Unknown layer type: {layer_id} ({type(layer_id)})")
 
-    print(f"Plotting activations of layer {layer_name} from {data_set}/{model_name}...")
-    
-    # Image to pass as input
-    # TODO: replace with the same routines as used elsewhere
-    img = tf.keras.preprocessing.image.load_img(image_path, target_size=input_shape[1:-1], #(224, 224), 
-                                                color_mode="grayscale", interpolation="lanczos")
-    img = tf.keras.preprocessing.image.img_to_array(img)
+    print(f"Getting activations of layer {layer_name} from {data_set}/{model_name}...")
 
-    # print(np.amin(img), np.amax(img), flush=True)
-    # img = np.expand_dims(np.dot(img, luminance_weights), axis=-1)
-    # cv2.resize(image, dsize=image_size, interpolation=interpolation)
-    img[img < 0] = 0
-    img[img > 255] = 255
+# #     layers_name = [layer_name.lower()]
+#     # Get the outputs of layers we want to inspect
+#     outputs = [
+#         layer.output for layer in model.layers
+#         if layer.name.lower() == layer_name.lower()
+# #         if layer.name.lower() in layers_name
+#     ]
 
-    img -= mean
-    img /= std
-
-#     layers_name = [layer_name.lower()]
-    # Get the outputs of layers we want to inspect
-    outputs = [
-        layer.output for layer in model.layers
-        if layer.name.lower() == layer_name.lower()
-#         if layer.name.lower() in layers_name
-    ]
+    if verbose:
+        print("Inputs: ")
+        pprint(model.inputs)
+        print("Outputs: ")
+        pprint(outputs)
 
     # Create a connection between the input and those target outputs
     activations_model = tf.keras.models.Model(model.inputs, outputs=outputs)
     activations_model.compile(optimizer='adam', loss='categorical_crossentropy')
 
+    if isinstance(image_path, str):
+        image_paths = [image_path]
+    else:
+        image_paths = image_path
+        assert isinstance(image_paths, (list, tuple))
+
+    activations = {}
+    for image_path in image_paths:
+        print(f"{image_path}: ", end='')
+        if os.path.isfile(image_path):
+            # Image to pass as input
+            # TODO: replace with the same routines as used elsewhere
+            img = tf.keras.preprocessing.image.load_img(image_path, target_size=input_shape[1:-1], #(224, 224), 
+                                                        color_mode="grayscale", interpolation="lanczos")
+            img = tf.keras.preprocessing.image.img_to_array(img)
+
+            # print(np.amin(img), np.amax(img), flush=True)
+            # img = np.expand_dims(np.dot(img, luminance_weights), axis=-1)
+            # cv2.resize(image, dsize=image_size, interpolation=interpolation)
+            img[img < 0] = 0
+            img[img > 255] = 255
+
+            img -= mean
+            img /= std
+
+            activations[image_path] = activations_model.predict(np.array([img]))
+        elif os.path.isdir(image_path):
+
+            gen_test = get_directory_generator(image_path, 
+                                            # preprocessing_function=preprocessing_function, 
+                                            mean=mean, std=std, # invert=image_path.endswith('invert'), 
+                                            image_size=(224, 224), colour='grayscale', 
+                                            batch_size=10, shuffle=False,
+                                            interpolation='lanczos')
+            activations[os.path.basename(image_path)] = activations_model.predict(gen_test)
+
     # Get their outputs
-    return activations_model.predict(np.array([img]))
+    return activations
 
 
 def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2, verbose=0):
