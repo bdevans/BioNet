@@ -475,7 +475,7 @@ from all_cnn.networks import allcnn
 # get_all_cnn = functools.partial(allcnn, image_shape=image_shape, n_classes=n_classes)
 
 # @functools.wraps(allcnn)
-def get_all_cnn(weights=None, include_top=True, classes=n_classes, input_shape=image_shape):
+def get_all_cnn(include_top=True, weights=None, input_shape=image_shape, classes=n_classes):
     # model = functools.partial(allcnn, image_shape=image_shape, n_classes=n_classes)
     return allcnn(image_shape=input_shape, n_classes=n_classes)
 
@@ -492,10 +492,10 @@ if weights is None:
     output_classes = n_classes
 else:
     output_classes = 1000  # Default
-model = model_base[base.lower().replace('-', '')](weights=weights, 
+model = model_base[base.lower().replace('-', '')](include_top=True, 
+                                                  weights=weights, 
                                                 #   input_tensor=input_tensor,
                                                   input_shape=image_shape,
-                                                  include_top=True, 
                                                   classes=output_classes)
 
 model = utils.substitute_layer(model, filter_params, 
