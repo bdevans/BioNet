@@ -455,8 +455,8 @@ def high_pass_filter(image, std, bg_grey=0.4423):
 
     # apply the gaussian filter and subtract from the original image
     # gauss_filter = gaussian_filter(image[:, :, 0], std, mode='constant', cval=bg_grey)
-    gauss_filter = gaussian_filter(image, std, mode='constant', cval=bg_grey)
-    new_image = image - gauss_filter#[..., np.newaxis]
+    gauss_filter = gaussian_filter(image.astype(np.float64), std, mode='constant', cval=bg_grey)
+    new_image = image - gauss_filter.astype(image.dtype)#[..., np.newaxis]
 
     # add mean of old image to retain image statistics
     mean_diff = bg_grey - np.mean(new_image, axis=(0,1))
@@ -486,7 +486,9 @@ def low_pass_filter(image, std, bg_grey=0.4423):
 
     # apply Gaussian low-pass filter
     # new_image = gaussian_filter(image[:, :, 0], std, mode='constant', cval=bg_grey)
-    new_image = gaussian_filter(image, std, mode='constant', cval=bg_grey)
+    new_image = gaussian_filter(image.astype(np.float64), std, mode='constant', cval=bg_grey)
+    new_image = new_image.astype(image.dtype)
+#     new_image = gaussian_filter(image.astype(np.float32), std, output=new_image, mode='constant', cval=bg_grey)
     # new_image = new_image[..., np.newaxis]
 
     # gaussian_filter(image, std, output=new_image, mode='constant', cval=bg_grey)
