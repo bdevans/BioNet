@@ -238,6 +238,9 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                     n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
                                                   * len(params['gammas']) * len(params['psis'])
                     kernel_initializer = GaborInitializer(**params)
+                elif filter_type.lower() == 'dog':
+                    n_kernels = len(params['sigmas']) * len(params['gammas']) * 2
+                    kernel_initializer = DifferenceOfGaussiansInitializer(**params)
                 elif filter_type.lower() == 'low-pass':
                     n_kernels = len(params['sigmas'])
                     kernel_initializer = LowPassInitializer(**params)
@@ -320,6 +323,85 @@ def substitute_output(model, n_classes=16):
 #         else:
 #             name = "predictions"
 #         new_model.append(Dense())
+
+
+class DifferenceOfGaussiansInitializer(Initializer):
+    """Difference of Gaussians initializer class."""
+    
+#     def __init__(self, ksize, A_c, sigma_c, A_s=None, sigma_s=None, gamma=None):
+#         if gamma is not None:
+#             sigma_s = sigma_c * gamma
+#         assert sigma_s > sigma_c
+
+    # TODO: Remove ksize as it is redundant when passing shape to call()
+    def __init__(self, ksize, sigmas, gammas):
+        if isinstance(ksize, (int, float)):
+            self.ksize = (ksize, ksize)
+        else:
+            assert len(ksize) == 2
+            self.ksize = tuple(ksize)
+        self.sigmas = sigmas
+        self.n_kernels = len(sigmas) * len(gammas) * 2
+        for gamma in gammas:
+            assert gamma > 1
+        self.gammas = gammas
+
+    def __call__(self, shape, dtype=None):
+        """Returns a tensor object initialized as specified by the initializer.
+        Args:
+            shape: Shape of the tensor.
+            dtype: Optional dtype of the tensor. If not provided use the initializer
+            dtype.
+        """
+        if shape is None:
+            ksize = self.ksize
+        else:
+            ksize = tuple(shape[:2])
+            assert ksize == self.ksize, f"[ksize] Passed: {ksize}; Expected: {self.ksize}"
+            assert self.n_kernels == shape[-1], f"[n_kernels] Passed: {shape[-1]}; Expected: {self.n_kernels}"
+
+        kernels = []
+        for sigma in self.sigmas:  # self.params['sigmas']:
+            for gamma in self.gammas:
+                sigma_c, sigma_s = sigma, sigma*gamma
+                # Create centre
+                kern_c_x = cv2.getGaussianKernel(ksize[0], sigma_c)
+                kern_c_y = cv2.getGaussianKernel(ksize[1], sigma_c)
+                kern_c = np.outer(kern_c_x, kern_c_y)
+                kern_c /= np.sum(kern_c)
+
+                # Create surround
+                kern_s_x = cv2.getGaussianKernel(ksize[0], sigma_s)
+                kern_s_y = cv2.getGaussianKernel(ksize[1], sigma_s)
+                kern_s = np.outer(kern_s_x, kern_s_y)
+                kern_s /= np.sum(kern_s)
+
+                kern_on = kern_c - kern_s
+                kern_off = kern_s - kern_c
+
+                kern_on = kern_on.astype('float32')  # HACK
+                kern_off = kern_off.astype('float32')  # HACK
+                # kern_on = kern_on.astype(dtypes.as_dtype(dtype))
+                # kern_off = kern_off.astype(dtypes.as_dtype(dtype))
+                # kern_on = kern_on.astype(dtype)
+                # kern_off = kern_off.astype(dtype)
+
+                kern_on = K.expand_dims(kern_on, -1)
+                kern_off = K.expand_dims(kern_off, -1)
+                # kernels.append(kern)
+                kernels.extend([kern_on, kern_off])
+        return K.stack(kernels, axis=-1)
+
+    def get_config(self):
+        """Returns the configuration of the initializer as a JSON-serializable dict.
+        Returns:
+        A JSON-serializable Python dict.
+        """
+
+        return {'ksize': self.ksize,
+                'sigmas': self.sigmas,
+                'gammas': self.gammas,
+                }
 
 
 class GaborInitializer(Initializer):
@@ -515,6 +597,8 @@ def load_model(data_set, name, verbose=0):
 
     if convolution == 'Gabor':
         custom_objects = {'GaborInitializer': GaborInitializer(**filter_params)}
+    elif convolution == 'DoG':
+        custom_objects = {'DifferenceOfGaussiansInitializer': DifferenceOfGaussiansInitializer(**filter_params)}
     elif convolution == 'Low-pass':
         custom_objects = {'LowPassInitializer': LowPassInitializer(**filter_params)}
     else:

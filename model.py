@@ -192,6 +192,13 @@ if convolution.capitalize() == 'Gabor':
               'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
               'psis': [np.pi/2, 3*np.pi/2]}
     mod = f'Gabor_{base}'
+elif convolution == 'DoG':
+    params = {'ksize': (63, 63),
+              'sigmas': [1, 2, 4, 8],
+#               'gammas': [2]
+              'gammas': [1.6, 1.8, 2, 2.2]
+             }
+    mod = f'DoG_{base}'
 elif convolution.capitalize() == 'Low-pass':
     params = {'ksize': (63, 63),
 #               'sigmas': [8]
