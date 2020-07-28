@@ -453,6 +453,9 @@ def high_pass_filter(image, std, bg_grey=0.4423):
     # image = rgb2grey(image)
     new_image = np.zeros(image.shape, image.dtype)
 
+    # Handle type conversion since correlate1d uses np.float64:
+    # https://github.com/scipy/scipy/blob/master/scipy/ndimage/filters.py
+    
     # apply the gaussian filter and subtract from the original image
     # gauss_filter = gaussian_filter(image[:, :, 0], std, mode='constant', cval=bg_grey)
     gauss_filter = gaussian_filter(image.astype(np.float64), std, mode='constant', cval=bg_grey)
@@ -480,6 +483,9 @@ def low_pass_filter(image, std, bg_grey=0.4423):
     # set this to mean pixel value over all images
 #     bg_grey = 0.4423
 
+    # Handle type conversion since correlate1d uses np.float64:
+    # https://github.com/scipy/scipy/blob/master/scipy/ndimage/filters.py
+    
     # covert image to greyscale and define variable prepare new image
     # image = rgb2grey(image)
     new_image = np.zeros(image.shape, image.dtype)
