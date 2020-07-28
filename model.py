@@ -171,8 +171,8 @@ n_classes = 10
 classes = ('airplane', 'automobile', 'bird', 'cat', 'deer', 
            'dog', 'frog', 'horse', 'ship', 'truck')
 # CIFAR10 image statistics calculated across the training set (after converting to greyscale)
-mean = 122.61930353949222
-std = 60.99213660091195
+# mean = 122.61930353949222
+# std = 60.99213660091195
 colour = 'grayscale'  # 'rgb'
 contrast_level = 1  # Proportion of original contrast level for uniform and salt and pepper noise
 
