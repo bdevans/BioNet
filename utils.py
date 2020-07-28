@@ -109,7 +109,7 @@ def calc_lambda(sigma, bandwidth):
     return sigma * np.pi / c  * (p - 1) / (p + 1)
 
 
-def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None):
+def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None, verbose=0):
     """Create a tensor of Gabor filters for greyscale images.
     
     The sinusoidal wavelength $\lambda$ is constrained by the bandwidth $b$
@@ -136,7 +136,14 @@ def get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None):
                         gf = K.expand_dims(gf, -1)
                         gabors.append(gf)
     assert len(gabors) == n_kernels
-    print(f"Created {n_kernels} kernels.")
+    if verbose:
+        print(f"Created {n_kernels} kernels.")
+        if verbose > 1:
+            print("bs:", bs)
+            print("sigmas:", sigmas)
+            print("thetas:", thetas)
+            print("gammas:", gammas)
+            print("psis:", psis)
     return K.stack(gabors, axis=-1)  # (ksize[0], ksize[1], 1, n_kernels)
 
 
@@ -411,8 +418,8 @@ class GaborInitializer(Initializer):
     #     self.dtype = dtypes.as_dtype(dtype)
     #     self.params = params
     #     # self.n_kernels = self.calc_n_kernels(params)
-    
-    def __init__(self, ksize, sigmas, bs, gammas, thetas, psis):
+
+    def __init__(self, ksize, sigmas, bs, gammas, thetas, psis, verbose=0):
         # TODO: Deprecate ksize in (initialisation of) filter parameters
         if isinstance(ksize, (int, float)):
             self.ksize = (ksize, ksize)
@@ -424,7 +431,8 @@ class GaborInitializer(Initializer):
         self.thetas = thetas
         self.psis = psis
         self.n_kernels = len(sigmas) * len(bs) * len(gammas) * len(thetas) * len(psis)
-    
+        self.verbose = verbose
+
     # def calc_n_kernels(params):
     #     return len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
     #                              * len(params['gammas']) * len(params['psis'])
@@ -446,7 +454,7 @@ class GaborInitializer(Initializer):
             ksize = tuple(shape[:2])
             assert self.n_kernels == shape[-1]
         return get_gabor_tensor(ksize, self.bs, self.sigmas, 
-                                self.thetas, self.gammas, self.psis)
+                                self.thetas, self.gammas, self.psis, self.verbose)
 
     def get_config(self):
         """Returns the configuration of the initializer as a JSON-serializable dict.
@@ -463,7 +471,7 @@ class GaborInitializer(Initializer):
                 'psis': self.psis
                 }
 
-    
+
 # from preparation import low_pass_filter
 
 class LowPassInitializer(Initializer):
@@ -489,7 +497,7 @@ class LowPassInitializer(Initializer):
             partition_info: Optional information about the possible partitioning of a
             tensor.
         """
-        
+
         if dtype is None:
             dtype = 'float32'  # floatx()
         # kernel_size = self.params['ksize']
