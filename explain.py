@@ -262,7 +262,7 @@ def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, fi
     img -= mean
     img /= std
 
-    
+
     # CAT_CLASS_INDEX = 5 #281  # Imagenet tabby cat class index
     PATCH_SIZE = 32 #40
 
@@ -311,7 +311,7 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
     # fig, axes = plt.subplots(nrows=nrows, ncols=1, figsize=(3, 3*nrows))
     # fig = plt.figure()
 
-    if filter_index is None:
+    if isinstance(filter_index, str) and filter_index == 'all':
         shape = layer.output.shape
         nrows = int(np.sqrt(shape[-1]))
         ncols = int(np.ceil(shape[-1]/nrows))
@@ -322,6 +322,15 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
         filter_indices = range(int(shape[-1]))
         title_prefix = ""
         plt.suptitle(f"{data_set}/{model_name}")
+    elif filter_index is None:
+        shape = layer.output.shape
+        filter_indices = [np.random.choice(shape[-1])]
+        title_prefix = f"{data_set}/{model_name}: "
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+        axes = np.array([ax])
     else:
         # nrows = 1
         # ncols = 1
