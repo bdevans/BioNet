@@ -643,7 +643,7 @@ if skip_test:
     sys.exit()
 
 
-all_test_sets = ['line_drawings', 'silhouettes', 'contours', 'scharr']
+all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
 
 if isinstance(test_generalisation, str):
     if test_generalisation.lower() == 'all':

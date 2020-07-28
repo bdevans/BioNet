@@ -26,7 +26,7 @@ train_stats = {
 }
 
 image_dir = '/work/data'
-all_test_sets = ['line_drawings', 'silhouettes', 'contours', 'scharr']
+all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
 
 
 def plot_grad_cam(data_set, model_name, test_set=None, image_weight=0.7, fig_sf=2, save_figure=False):
