@@ -766,7 +766,7 @@ for test_set in test_sets:
         if save_predictions:
             predictions = model.predict(gen_test, 
                                         verbose=1,
-                                        # steps=gen_test.n//batch,
+                                        # steps=gen_test.n//batch,  # BAD: This skips the remainder of images
                                         steps=len(gen_test),
                                         max_queue_size=max_queue_size,
                                         workers=workers,
