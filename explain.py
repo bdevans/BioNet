@@ -208,6 +208,9 @@ def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2
     # print(shape)
     nrows = int(np.sqrt(shape[-1]))
     ncols = int(np.ceil(shape[-1]/nrows))
+    while nrows * ncols != shape[-1]:
+        ncols += 1
+        nrows -= 1
     # print(nrows, ncols)
 
     # if verbose:
