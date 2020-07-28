@@ -325,6 +325,12 @@ if upscale:
 x_train = x_train.astype(np.float16)
 x_test = x_test.astype(np.float16)
 
+# TODO: Implement for testing stimuli
+# if weights == 'imagenet':
+#     print("Replicating grayscale layer to match expected input size...")
+#     x_train = x_train.repeat(3, axis=-1)
+#     x_test = x_test.repeat(3, axis=-1)
+
 # Summarise stimuli
 print(f'x_train.shape: {x_train.shape}')
 print(f'Training: {x_train.shape[0]} in {y_train.shape[1]} categories')
