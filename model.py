@@ -208,8 +208,10 @@ elif convolution == 'DoG':
 elif convolution.capitalize() == 'Low-pass':
     params = {'ksize': (63, 63),
 #               'sigmas': [8]
-#               'sigmas': [1, 2, 4, 8]}  # long_k4
-              'sigmas': [2, 4]} # Low-pass_s_2_4
+              'sigmas': [1, 2, 4, 8]}  # long_k4
+#               'sigmas': [2, 4]} # Low-pass_s_2_4
+#               'sigmas': [4, 8]} # Low-pass_s_4_8
+              
     mod = f'Low-pass_{base}'
 elif convolution.capitalize() == 'Original':
     params = None
