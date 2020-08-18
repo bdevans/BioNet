@@ -1,9 +1,11 @@
 import os
 import functools
 import subprocess
+import math
 from pprint import pprint
 
 from matplotlib import pyplot as plt
+import matplotlib.ticker as ticker
 # import PIL.Image
 import seaborn as sns
 import numpy as np
@@ -11,6 +13,8 @@ from scipy import signal, fftpack
 import cv2
 # import tensorflow as tf
 from tensorflow.keras import backend as K
+from sklearn.metrics import auc
+from scipy.integrate import simps
 
 from GaborNet.utils import calc_sigma, calc_lambda  # calc_bandwidth,
 from GaborNet.preparation import (cifar_wrapper, sanity_check, 
@@ -532,3 +536,76 @@ def plot_image_predictions(label, models, top_k=3, params=None, gpu=None):
                 output = f'/work/results/{label}/filtered_{test_set}{"_invert" if invert_test_images else ""}_{model}.png'
                 fig.savefig(output)
                 f"Created figure: {output}"
+
+
+def plot_perturbations(df, tag=None, landscape=True, ncols=2, verbose=1):
+    """Plot a grid of performance versus level curves for a battery of noise perturbations."""
+
+    noise_types = ["Uniform", "Salt and Pepper", "High Pass", "Low Pass", 
+                   "Contrast", "Phase Scrambling", "Darken", "Brighten", 
+                   "Rotation", "Invert"]
+
+    chance_level = 0.1  # Assumes performance is measured on CIFAR-10 images
+
+    models = df.Model.unique().tolist()
+    convolutions = df.Convolution.unique().tolist()
+    bases = df.Base.unique().tolist()
+
+    if verbose:
+        print(models)
+        print(convolutions)
+        print(bases)
+
+    # with sns.axes_style("ticks"):
+    with sns.axes_style("darkgrid"):
+
+        if landscape:
+            fig, axes = plt.subplots(ncols, int(math.ceil(len(noise_types)/ncols)),
+                                     sharey=True, squeeze=True, figsize=(24,12))
+        else:  # portrait
+            fig, axes = plt.subplots(int(math.ceil(len(noise_types)/ncols)), ncols, 
+                                     sharey=True, squeeze=True, figsize=(12,24))
+        
+        for (noise, ax) in zip(noise_types, axes.ravel()):
+            ax = sns.lineplot(x='Level', y='Accuracy', style='Base', 
+                              hue='Convolution', hue_order=sorted(convolutions),
+                              data=df[df.Noise==noise], ax=ax)
+            ax.get_legend().set_visible(False)
+            ax.set_title(noise)
+            ax.set_ylim([0, 1])
+            ax.set_yticks(np.linspace(0, 1, num=11))
+            ax.axhline(y=chance_level, c='grey', ls='--')
+
+            if noise in ["High Pass", "Low Pass", "Contrast"]:
+                ax.set_xscale('log')
+                # https://matplotlib.org/3.1.1/gallery/ticks_and_spines/tick-locators.html
+                ax.xaxis.set_minor_locator(ticker.LogLocator(base=10.0, subs=np.linspace(0.1, 0.9, num=9)))
+                if noise in ["High Pass", "Contrast", "Darken"]:
+                    ax.invert_xaxis()
+
+            if noise in ["Phase Scrambling", "Rotation", "Invert"]:
+                x = df.query(f"Noise == '{noise}' and Model == '{models[0]}' and Trial == 1").Level.to_numpy()
+                ax.set_xticks(x)
+        
+        ax.get_legend().set_visible(True)  # Show in final subfigure
+        plt.tight_layout()
+        if tag is not None:
+            fig.savefig(f'/work/results/perturbations_{tag}.png')
+
+    return fig, axes
+
+
+def plot_auc_ratios(df, tag=None):
+
+    with sns.axes_style("darkgrid"):
+        fig = plt.figure(figsize=(20,6))
+        ax = sns.barplot(data=df, x='Noise', y='Ratio', hue='Model')
+        # sns.catplot(data=df_long, x='Noise', y='Ratio', hue='Model', kind='bar', aspect=2)
+    #     ax.axhline(y=0, c='k')
+        ax.axhline(y=1, c='gray', ls='--')
+    #     sns.despine(trim=True, bottom=True)  # offset=10, 
+        plt.tight_layout()
+        if tag is not None:
+            fig.savefig(f'/work/results/auc_{tag}.png')
+
+    return fig, ax
