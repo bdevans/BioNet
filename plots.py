@@ -24,6 +24,8 @@ from GaborNet.preparation import (cifar_wrapper, sanity_check,
 luminance_weights = np.array([0.299, 0.587, 0.114])
 
 def inspect_image(image_path):
+    """Plot image with Luminance Histogram, Cumulative Luminance Histogram 
+    and log absolute of values of Fourier Spectrum."""
     
     figsize = (8,8)
     
@@ -84,6 +86,8 @@ def inspect_image(image_path):
 
 
 def plot_accuracy(history, chance=None, filename=None, ax=None, figsize=(12, 8)):
+    """Plot accuracy against training epochs with optional validation accuracy
+    and chance level."""
     # Plot training metrics
         
     fig = None
@@ -109,6 +113,7 @@ def plot_accuracy(history, chance=None, filename=None, ax=None, figsize=(12, 8))
 
 
 def plot_loss(history, filename=None, ax=None, figsize=(12, 8)):
+    """Plot loss against training epochs with optional validation loss."""
     # Plot training metrics
         
     fig = None
@@ -132,6 +137,7 @@ def plot_loss(history, filename=None, ax=None, figsize=(12, 8)):
 
 
 def plot_metrics(history, epochs, metrics, ax):
+    """Plot all recorded metrics."""
     for metric in metrics:
         ax.plot(range(1, epochs+1), history.history[metric], label=metric)
     ax.set_xlabel("Epoch")
@@ -141,6 +147,7 @@ def plot_metrics(history, epochs, metrics, ax):
 
 
 def plot_history(history, chance=None, metrics=None, filename=None, figsize=(12, 16)):
+    """Plot training history with optional chance accuracy level."""
 
     if metrics is None:
         metrics = list(history.history.keys())
@@ -201,7 +208,8 @@ def plot_history(history, chance=None, metrics=None, filename=None, figsize=(12,
 
 
 def plot_gabor_filters(params, images=None, use_gpu=True, fontsize=20, space=0.15, verbose=0):
-
+    """Plot a bank of Gabor filters decribed and labelled by their parameters.
+    Optionally pass an image or list of images to convolve with each filter."""
     # ksize is the size of the Gabor kernel. If ksize = (a, b), we then have a Gabor kernel of size a x b pixels. As with many other convolution kernels, ksize is preferably odd and the kernel is a square (just for the sake of uniformity).
     # sigma is the standard deviation of the Gaussian function used in the Gabor filter.
     # theta is the orientation of the normal to the parallel stripes of the Gabor function.
@@ -419,7 +427,7 @@ def plot_dog_filters():
 
 
 def plot_image_predictions(label, models, top_k=3, params=None, gpu=None):
-
+    # TODO: Remove convolution steps and plot original image instead. 
     # label = 'long'
     # models = [f'Low-pass_VGG19_{n}' for n in range(1, 2)]
 
