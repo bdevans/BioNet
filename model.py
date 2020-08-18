@@ -84,6 +84,10 @@ parser.add_argument('--decay', type=float, default=1e-6, required=False,
                     help='Optimizer decay for training')
 parser.add_argument('--use_initializer', action='store_true', default=False, required=False,
                     help='Flag to use the weight initializer (then freeze weights) for the Gabor filters')
+# parser.add_argument('--add_noise', action='store_true', default=False, required=False,
+#                     help='Flag to add a Gaussian noise layer after the first convolutional layer')
+parser.add_argument('--internal_noise', type=float, default=None, required=False,
+                    help='Standard deviation for adding a Gaussian noise layer after the first convolutional layer')
 parser.add_argument('--trial', type=int, default=1,  # default to 0 when unspecified?
                     help='Trial number for labeling different runs of the same model')
 parser.add_argument('--label', type=str, default='',
@@ -154,6 +158,8 @@ optimizer = args['optimizer']  # 'RMSprop'
 lr = args['lr']  # 0.0001  # 0.0005  # 0.0004  # 0.001  # 0.025
 decay = args['decay']  # 1e-6  #
 use_initializer = args['use_initializer']
+# add_noise = args['add_noise']
+internal_noise = args['internal_noise']
 skip_test = args['skip_test']
 save_images = args['save_images']
 save_predictions = args['save_predictions']
@@ -396,6 +402,8 @@ sim = {
     'models_dir': models_dir,
     'results_dir': results_dir,
     'use_initializer': use_initializer,
+#     'add_noise': add_noise,
+    'internal_noise': internal_noise,
     'filter_params': params,
     }
 
@@ -461,12 +469,15 @@ model = model_base[base.lower().replace('-', '')](include_top=True,
                                                   input_shape=image_shape,
                                                   classes=output_classes)
 
+# if add_noise:
+#     model = utils.insert_noise_layer(model, layer=None, std=noise)
 model = utils.substitute_layer(model, filter_params, 
                                filter_type=convolution,
                                replace_layer=None,
                                input_shape=image_size, 
                                colour_input=colour, 
-                               use_initializer=use_initializer)
+                               use_initializer=use_initializer,
+                               noise_std=internal_noise)
 if n_classes != output_classes:  # 1000:
     model = utils.substitute_output(model, n_classes=n_classes)
 

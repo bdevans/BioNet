@@ -178,9 +178,41 @@ def find_conv_layer(model, first=True):
     return layer_name, layer_ind
 
 
+def insert_noise_layer(model, layer=None, std=1, verbose=0):
+    """Insert Gaussian Noise layer after the specified model layer."""
+
+    assert 0 < std
+    if layer is None:
+        # Attempt to find the first convolutional layer
+        _, layer = find_conv_layer(model)
+    assert isinstance(layer, int)
+    assert 0 < layer < len(model.layers)
+
+    if verbose:
+        print(f"Insert Gaussian noise layer with std={std} after layer {layer}...")
+
+    for layer_ind, layer_object in enumerate(model.layers):
+        # print(ind, layer.name)
+        if ind == 0:  # Get input layer
+            config = layer.get_config()
+            inp = Input(**config)
+            # inp = layer
+            x = inp
+        else:
+            x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
+                                             'config': layer.get_config()})(x)
+        if layer_ind == layer:
+            # Additive zero-centered Gaussian noise
+            # As it is a regularization layer, it is only active at training time.
+            x = tf.keras.layers.GaussianNoise(stddev=std)(x)
+
+    model = Model(inputs=inp, outputs=x, name=f"noisy_{model.name}")
+    return model
+
+
 def substitute_layer(model, params, filter_type='gabor', replace_layer=1, 
                      input_shape=None, colour_input='rgb', 
-                     use_initializer=False, verbose=0):
+                     use_initializer=False, noise_std=0, verbose=0):
 
     if replace_layer is None:
         # Attempt to find the first convolutional layer
@@ -238,39 +270,45 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
             # inp = layer
             x = inp
             print(f"{config['shape']}")
-        elif ind == replace_layer and params is not None:  # Replace convolutional layer
-            print(f"Replacing layer {ind}: '{layer.name}' --> '{filter_type.lower()}_conv'...")
-            if use_initializer:
-                if filter_type.lower() == 'gabor':
-                    n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
-                                                  * len(params['gammas']) * len(params['psis'])
-                    kernel_initializer = GaborInitializer(**params)
-                elif filter_type.lower() == 'dog':
-                    n_kernels = len(params['sigmas']) * len(params['gammas']) * 2
-                    kernel_initializer = DifferenceOfGaussiansInitializer(**params)
-                elif filter_type.lower() == 'low-pass':
-                    n_kernels = len(params['sigmas'])
-                    kernel_initializer = LowPassInitializer(**params)
-                # When using this layer as the first layer in a model, provide the keyword argument 
-                # input_shape (tuple of integers, does not include the batch axis), 
-                # e.g. input_shape=(128, 128, 3) for 128x128 RGB pictures in data_format="channels_last".
+        elif ind == replace_layer:
+            if params is not None:  # Replace convolutional layer
+                print(f"Replacing layer {ind}: '{layer.name}' --> '{filter_type.lower()}_conv'...")
+                if use_initializer:
+                    if filter_type.lower() == 'gabor':
+                        n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
+                                                      * len(params['gammas']) * len(params['psis'])
+                        kernel_initializer = GaborInitializer(**params)
+                    elif filter_type.lower() == 'dog':
+                        n_kernels = len(params['sigmas']) * len(params['gammas']) * 2
+                        kernel_initializer = DifferenceOfGaussiansInitializer(**params)
+                    elif filter_type.lower() == 'low-pass':
+                        n_kernels = len(params['sigmas'])
+                        kernel_initializer = LowPassInitializer(**params)
+                    # When using this layer as the first layer in a model, provide the keyword argument 
+                    # input_shape (tuple of integers, does not include the batch axis), 
+                    # e.g. input_shape=(128, 128, 3) for 128x128 RGB pictures in data_format="channels_last".
 
-                # Input shape: (batch, rows, cols, channels)
-                # Output shape: (batch, new_rows, new_cols, filters)
-                x = Conv2D(n_kernels, params['ksize'], padding='same', 
-                           activation='relu', use_bias=True,
-                        #    activation=None, use_bias=False,
-                           name=f"{filter_type.lower()}_conv",
-                           kernel_initializer=kernel_initializer)(x)
-                # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
-
-            else:  # Deprecated
-                assert isinstance(layer, tf.keras.layers.Conv2D)
-                # Generate Gabor filters
-                # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
-                tensor = get_gabor_tensor(**params)
-                x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
-                           name=f"{filter_type.lower()}_conv")(x)
+                    # Input shape: (batch, rows, cols, channels)
+                    # Output shape: (batch, new_rows, new_cols, filters)
+                    x = Conv2D(n_kernels, params['ksize'], padding='same', 
+                               activation='relu', use_bias=True,
+                            #    activation=None, use_bias=False,
+                               name=f"{filter_type.lower()}_conv",
+                               kernel_initializer=kernel_initializer)(x)
+                    # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
+                else:  # Deprecated
+                    assert isinstance(layer, tf.keras.layers.Conv2D)
+                    # Generate Gabor filters
+                    # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
+                    tensor = get_gabor_tensor(**params)
+                    x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
+                               name=f"{filter_type.lower()}_conv")(x)
+            else:
+                x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
+                                                 'config': layer.get_config()})(x)
+            if noise_std:
+                # Add noise after the convolutional layer
+                x = tf.keras.layers.GaussianNoise(stddev=noise_std)(x)
         # elif ind == replace_layer + 1 and params is not None:  # Replace next layer
         #     # Check input_shape matches output_shape?
         #     # x = Conv2D(**layers[layer].get_config())(x)
@@ -283,7 +321,11 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
         # print(x.shape)
 
     # del model
-    model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
+    if noise_std:
+        new_name = f"{filter_type}_noise_{model.name}"
+    else:
+        new_name = f"{filter_type}_{model.name}"
+    model = Model(inputs=inp, outputs=x, name=new_name)
     if use_initializer:
         # Freeze weights of kernels
         # model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
