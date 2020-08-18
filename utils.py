@@ -4,9 +4,11 @@ This module contains help functions and general utilities for building custom co
 
 import os
 import json
+import glob
 # import subprocess
 from pprint import pprint
 
+import pandas as pd
 import numpy as np
 # from scipy import signal
 import cv2
@@ -20,6 +22,8 @@ from tensorflow.python.framework import dtypes
 # from K.tensorflow_backend import set_session
 # from K.tensorflow_backend import clear_session
 # from K.tensorflow_backend import get_session
+from sklearn.metrics import auc
+from scipy.integrate import simps
 
 
 # # Reset Keras Session
@@ -671,3 +675,82 @@ def load_model(data_set, name, verbose=0):
         model.summary()
 
     return model
+
+
+
+# def consolidate_results(pattern, output):
+# #     pattern = patterns['DoG']['ALL-CNN']
+# #     output = f'/work/results/paper/perturb_DoG_ALL-CNN_Set.csv'
+#     df = pd.concat([pd.read_csv(file) for file in glob.glob(pattern)], ignore_index=True)
+#     df["Weights"] = "None"
+#     df["Model"].where(df == "VGG16") = "VGG-16"
+#     df["Model"].where(df == "VGG19") = "VGG-19"
+# #     df.mask("VGG16" in df, "VGG-16") = "VGG-16"
+#     if "ImageNet" in pattern:
+#         df["Weights"] = "imagenet"
+#     else:
+#         df["Weights"] = "None"
+#     df["Convolution"] = "Original"
+#     df["Base"] = "VGG19"
+#     df["Model"] = "VGG19_ImageNet"
+#     df = df[columns]
+#     df.sort_values(by=['Trial', 'Noise', 'Level'], inplace=True, ignore_index=True)
+#     df.to_csv(output, index=False)
+# #     frames.append(pd.read_csv(output))
+#     return pd.read_csv(output)
+
+
+def get_perturbation_results(tag):
+
+    frames = []
+    columns = ['Trial', 'Model', 'Convolution', 'Base', 'Weights', 
+               'Noise', 'Level', 'Loss', 'Accuracy']
+
+    # Gaussian Noise
+    tag = 'noise_s_0_2'
+    sigma = 0.2
+    seed =  1895185933 #1086513891  #2817631224
+    pattern = f'/work/results/{tag}/perturb_*s{seed}.csv'
+    output = f'/work/results/{tag}/perturb_noise_{sigma}_Set.csv'
+    df = pd.concat([pd.read_csv(file) for file in glob.glob(pattern)], ignore_index=True)
+    df["Weights"] = "None"
+    df = df[columns]
+    df.sort_values(by=['Trial', 'Noise', 'Level'], inplace=True, ignore_index=True)
+    df.to_csv(output, index=False)
+    frames.append(pd.read_csv(output))
+
+    perturbations = pd.concat(frames, ignore_index=True)
+
+    return perturbations
+
+
+def calc_aucs(df, verbose=1):
+    
+    # noise_types = df.Noise.unique().tolist()
+    noise_types = ["Uniform", "Salt and Pepper", "High Pass", "Low Pass", 
+                   "Contrast", "Phase Scrambling", "Darken", "Brighten", 
+                   "Rotation", "Invert"]
+    models = df.Model.unique().tolist()
+    convolutions = df.Convolution.unique().tolist()
+    bases = df.Base.unique().tolist()
+
+    if verbose > 1:
+        print(noise_types)
+        print(models)
+        print(convolutions)
+        print(bases)
+
+    scores = {}
+    for noise in noise_types:
+        scores[noise] = {}
+        for model in models:
+            query = f"Noise == '{noise}' and Model == '{model}'"
+            x = df.query(f"{query} and Trial == 1").Level.to_numpy()
+            y = df.query(query).groupby('Level').mean().Accuracy.to_numpy()
+
+            scores[noise][model] = auc(x, y)
+            if verbose:
+                print(f'{noise:16} | {model:14}: AUC = {scores[noise][model]:6.3f} | SIMP = {simps(y, x):7.3f}')
+        if verbose:
+            print('-' * 64)
+    return scores
