@@ -104,7 +104,9 @@ def plot_grad_cam(data_set, model_name, test_set=None, image_weight=0.7, fig_sf=
 
 
 def get_activations(image_path, data_set, model_name, layer_id=None, verbose=0):
-
+    """Extract activations to an image (or list of images) from a model at a
+    given layer (or list of layers). 
+    """
     # data_root = '/work/data'
 
     model = load_model(data_set, model_name, verbose=verbose)
@@ -200,7 +202,8 @@ def get_activations(image_path, data_set, model_name, layer_id=None, verbose=0):
 
 
 def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2, verbose=0):
-    
+    """Plot a dictionary of activation maps for each image. """
+
     activations = get_activations(image_path, data_set, model_name, layer_name)
     shape = activations[image_path].shape
     n_channels = shape[-1]
