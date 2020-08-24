@@ -119,6 +119,8 @@ parser.add_argument('--test_perturbations', action='store_true',
                     help='Flag to test the model on perturbed images')
 parser.add_argument('--data_augmentation', action='store_true', # type=bool, default=False,
                     help='Flag to train the model with data augmentation')
+parser.add_argument('--extra_augmentation', action='store_true', # type=bool, default=False,
+                    help='Flag to train the model with additional data augmentation')
 parser.add_argument('-c', '--clean', action='store_true', default=False, required=False,
                     help='Flag to retrain model')
 parser.add_argument('--skip_test', action='store_true',
@@ -153,6 +155,7 @@ test_generalisation = args['test_generalisation']
 invert_test_images = args['invert_test_images']
 test_perturbations = args['test_perturbations']
 data_augmentation = args['data_augmentation']
+extra_augmentation = args['extra_augmentation']
 recalculate_statistics = args['recalculate_statistics']
 optimizer = args['optimizer']  # 'RMSprop'
 lr = args['lr']  # 0.0001  # 0.0005  # 0.0004  # 0.001  # 0.025
@@ -381,6 +384,7 @@ sim = {
     'decay': decay,
     'batch': batch,
     'data_augmentation': data_augmentation,
+    'extra_augmentation': extra_augmentation,
     'seed': seed,
     'trial': trial,
     'model': mod,
@@ -515,18 +519,38 @@ if not train:
 else:
     # Create Image Data Generators
     if data_augmentation:
-        print('Using data augmentation.')
-        data_gen = ImageDataGenerator(
+        if extra_augmentation:
+            print('Using extra data augmentation.')
+            data_gen = ImageDataGenerator(
             featurewise_center=True,
             samplewise_center=False,
             featurewise_std_normalization=True,
             samplewise_std_normalization=False,
             zca_whitening=False,
-            rotation_range=0,
-            width_shift_range=0.1,
-            height_shift_range=0.1,
+            rotation_range=45,
+            brightness_range=(0.2, 1.0),
+            shear_range=0.2,
+            zoom_range=(0.5, 1.5),
+#             fill_mode="constant",
+#             cval=mean,
+            width_shift_range=0.2,
+            height_shift_range=0.2,
             horizontal_flip=True,
             vertical_flip=False)
+        else:
+            print('Using data augmentation.')
+            data_gen = ImageDataGenerator(
+                featurewise_center=True,
+                samplewise_center=False,
+                featurewise_std_normalization=True,
+                samplewise_std_normalization=False,
+                zca_whitening=False,
+                rotation_range=0,
+                width_shift_range=0.1,
+                height_shift_range=0.1,
+                horizontal_flip=True,
+                vertical_flip=False)
+        
     else:
         data_gen = ImageDataGenerator(#preprocessing_function=prep_image,
                                         featurewise_center=True, 
