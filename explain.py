@@ -202,15 +202,19 @@ def get_activations(image_path, data_set, model_name, layer_id=None, verbose=0):
 def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2, verbose=0):
     
     activations = get_activations(image_path, data_set, model_name, layer_name)
-    
     shape = activations[image_path].shape
+    n_channels = shape[-1]
     # np.squeeze(activations_1)
     # print(shape)
-    nrows = int(np.sqrt(shape[-1]))
-    ncols = int(np.ceil(shape[-1]/nrows))
-    while nrows * ncols != shape[-1]:
+
+    # Create a grid with one cell for each map, closest to a square.
+    nrows = int(np.sqrt(n_channels))
+    ncols = int(np.ceil(n_channels/nrows))
+    # while nrows * ncols != n_channels:
+    #     ncols += 1
+    #     nrows -= 1
+    while nrows * ncols < n_channels:
         ncols += 1
-        nrows -= 1
     # print(nrows, ncols)
 
     # if verbose:
@@ -221,7 +225,8 @@ def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2
                              sharex=True, sharey=True, squeeze=False,
                              figsize=(ncols*fig_sf, nrows*fig_sf))
 
-    for feat, ax in enumerate(axes.ravel()):
+    # for feat, ax in enumerate(axes.ravel()):
+    for feat, ax in zip(range(n_channels), axes.ravel()):
         ax.imshow(activations[image_path][0, :, :, feat])
         ax.set_xticks([])
         ax.set_yticks([])
