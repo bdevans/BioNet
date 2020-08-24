@@ -958,7 +958,17 @@ for noise, noise_function, levels in noise_types:
             writer.writerow(row)
         # rows.append(row)
     print("-" * 80)
-print(f'[{datetime.now().strftime("%Y/%m/%d %H:%M:%S")}] Simulation finished!')
+
+# print(f'Models: {os.path.join(models_dir, label)}')
+print(f'Models: {model_output_dir}')
+print(f'Logs: {logs_dir}')  # if args['log']: logdir
+print(f'Results: {save_to_dir}')
+if save_predictions:
+    print(f'Predictions: {os.path.join(save_to_dir, 'predictions')}')
+if save_images:
+    print(f'Generated images: {image_out_dir}')
+
+print(f'[{datetime.now().strftime("%Y/%m/%d %H:%M:%S")}] Simulation for model "{model_output_dir}" finished!')
 print("=" * 80)
 # for m, metric in enumerate(model.metric_names):
 #     test_metrics[mod][metric]
