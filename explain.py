@@ -167,7 +167,7 @@ def get_activations(image_path, data_set, model_name, layer_id=None, verbose=0):
 
     activations = {}
     for image_path in image_paths:
-        print(f"{image_path}: ", end='')
+        # print(f"{image_path}: ", end='')
         if os.path.isfile(image_path):
             # Image to pass as input
             # TODO: replace with the same routines as used elsewhere
