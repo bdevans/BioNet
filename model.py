@@ -522,21 +522,21 @@ else:
         if extra_augmentation:
             print('Using extra data augmentation.')
             data_gen = ImageDataGenerator(
-            featurewise_center=True,
-            samplewise_center=False,
-            featurewise_std_normalization=True,
-            samplewise_std_normalization=False,
-            zca_whitening=False,
-            rotation_range=45,
-            brightness_range=(0.2, 1.0),
-            shear_range=0.2,
-            zoom_range=(0.5, 1.5),
-#             fill_mode="constant",
-#             cval=mean,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
-            horizontal_flip=True,
-            vertical_flip=False)
+                featurewise_center=True,
+                samplewise_center=False,
+                featurewise_std_normalization=True,
+                samplewise_std_normalization=False,
+                zca_whitening=False,
+                rotation_range=45,
+                brightness_range=(0.2, 1.0),
+                shear_range=0.2,
+                zoom_range=(0.5, 1.5),
+    #             fill_mode="constant",
+    #             cval=mean,
+                width_shift_range=0.2,
+                height_shift_range=0.2,
+                horizontal_flip=True,
+                vertical_flip=False)
         else:
             print('Using data augmentation.')
             data_gen = ImageDataGenerator(
