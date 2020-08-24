@@ -988,7 +988,7 @@ print(f'Models: {model_output_dir}')
 print(f'Logs: {logs_dir}')  # if args['log']: logdir
 print(f'Results: {save_to_dir}')
 if save_predictions:
-    print(f'Predictions: {os.path.join(save_to_dir, 'predictions')}')
+    print(f"Predictions: {os.path.join(save_to_dir, 'predictions')}")
 if save_images:
     print(f'Generated images: {image_out_dir}')
 
