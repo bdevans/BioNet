@@ -594,7 +594,7 @@ class KernelInitializer(Initializer):
         self.function = kernel_function
         # self.n_kernels = self.calc_n_kernels(params)
     
-    def calc_n_kernels(params):
+    def calc_n_kernels(self, params):
         return np.prod([value for param, value in params.items() if param != 'ksize'], dtype=int)
 #         return len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
 #                                  * len(params['gammas']) * len(params['psis'])
