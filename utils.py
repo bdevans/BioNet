@@ -220,11 +220,6 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
 
     if replace_layer is None:
         # Attempt to find the first convolutional layer
-        # for ind, layer in enumerate(model.layers):
-        #     if isinstance(layer, tf.keras.layers.Conv2D):
-        #         print(f"Found first convolutional layer {ind}: {layer.name}")
-        #         replace_layer = ind
-        #         break
         _, replace_layer = find_conv_layer(model)
     assert isinstance(replace_layer, int)
     assert 0 < replace_layer < len(model.layers)
