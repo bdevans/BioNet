@@ -197,7 +197,7 @@ def insert_noise_layer(model, layer=None, std=1, verbose=0):
 
     for layer_ind, layer_object in enumerate(model.layers):
         # print(ind, layer.name)
-        if ind == 0:  # Get input layer
+        if layer_ind == 0:  # Get input layer
             config = layer.get_config()
             inp = Input(**config)
             # inp = layer
