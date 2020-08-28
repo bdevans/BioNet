@@ -25,6 +25,9 @@ from tensorflow.python.framework import dtypes
 from sklearn.metrics import auc
 from scipy.integrate import simps
 
+# Needed for load_images
+from tqdm import tqdm
+from matplotlib import pyplot as plt
 
 # # Reset Keras Session
 # def reset_keras():
