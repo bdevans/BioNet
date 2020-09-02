@@ -279,15 +279,10 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                                 assert 'lambdas' in params
                                 # params['sigmas'] = [utils.calc_sigma(lambd, b) for lambd in params['lambdas']
                                 #                     for b in params['bs']]
-
-                            # n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
-                            #                             * len(params['gammas']) * len(params['psis'])
                             kernel_initializer = GaborInitializer(**params)
                         elif layer_type.lower() == 'dog':
-                            # n_kernels = len(params['sigmas']) * len(params['gammas']) * 2
                             kernel_initializer = DifferenceOfGaussiansInitializer(**params)
                         elif layer_type.lower() == 'low-pass':
-                            # n_kernels = len(params['sigmas'])
                             kernel_initializer = LowPassInitializer(**params)
                         n_kernels = kernel_initializer.n_kernels
                         # When using this layer as the first layer in a model, provide the keyword argument 
@@ -302,12 +297,9 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                                 name=f"{layer_type.lower()}_conv",
                                 kernel_initializer=kernel_initializer, 
                                 trainable=False)(x)
-                        # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
                     else:  # Deprecated
                         assert isinstance(layer, tf.keras.layers.Conv2D)
-                        # Generate Gabor filters
-                        # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
-                        tensor = get_gabor_tensor(**params)
+                        tensor = get_gabor_tensor(**params)  # Generate Gabor filters
                         x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
                                 name=f"{layer_type.lower()}_conv")(x)
                 else:
@@ -322,10 +314,9 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
         #     x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
         #                                      'config': layer.get_config()})(x)
         else:
-#             x = layer(x)
+            # x = layer(x)
             x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
                                              'config': layer.get_config()})(x)
-        # print(x.shape)
 
     # del model
     if noise_std:
@@ -333,10 +324,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
     else:
         new_name = f"{filter_type}_{model.name}"
     model = Model(inputs=inp, outputs=x, name=new_name)
-    # if use_initializer:
-    #     # Freeze weights of kernels
-    #     # model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
-    #     model.layers[replace_layer].trainable = False
+
     return model
 
 
@@ -485,11 +473,6 @@ class DifferenceOfGaussiansInitializer(Initializer):
 class GaborInitializer(Initializer):
     """Gabor kernel initializer class."""
 
-    # def __init__(self, params, dtype=dtypes.float32):
-    #     self.dtype = dtypes.as_dtype(dtype)
-    #     self.params = params
-    #     # self.n_kernels = self.calc_n_kernels(params)
-
     def __init__(self, ksize, sigmas, bs, gammas, thetas, psis, verbose=0):
         # TODO: Deprecate ksize in (initialisation of) filter parameters
         if isinstance(ksize, (int, float)):
@@ -505,6 +488,7 @@ class GaborInitializer(Initializer):
         self.n_kernels = len(sigmas) * len(bs) * len(gammas) * len(thetas) * len(psis)
         self.verbose = verbose
 
+    # TODO: Use @property decorator with setter and getter methods
     # def calc_n_kernels(params):
     #     return len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
     #                              * len(params['gammas']) * len(params['psis'])
@@ -634,12 +618,12 @@ class LowPassInitializer(Initializer):
 
         # https://stackoverflow.com/questions/29731726/how-to-calculate-a-gaussian-kernel-matrix-efficiently-in-numpy
         # Method 1
-#         # create nxn zeros
-#         inp = np.zeros((kernel_size, kernel_size))
-#         # set element at the middle to one, a dirac delta
-#         inp[kernel_size//2, kernel_size//2] = 1
-#         # gaussian-smooth the dirac, resulting in a gaussian filter mask
-#         return low_pass_filter(inp, std)[:,:,0]
+        # # create nxn zeros
+        # inp = np.zeros((kernel_size, kernel_size))
+        # # set element at the middle to one, a dirac delta
+        # inp[kernel_size//2, kernel_size//2] = 1
+        # # gaussian-smooth the dirac, resulting in a gaussian filter mask
+        # return low_pass_filter(inp, std)[:,:,0]
 
         # Method 2
         kernels = []
@@ -687,8 +671,6 @@ class KernelInitializer(Initializer):
     
     def calc_n_kernels(self, params):
         return np.prod([value for param, value in params.items() if param != 'ksize'], dtype=int)
-#         return len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
-#                                  * len(params['gammas']) * len(params['psis'])
 
     def __call__(self, shape, dtype=None, partition_info=None):
         """Returns a tensor object initialized as specified by the initializer.
