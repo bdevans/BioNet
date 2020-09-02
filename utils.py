@@ -227,23 +227,15 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
     assert isinstance(replace_layer, int)
     assert 0 < replace_layer < len(model.layers)
 
-    # Parse parameters
-    if params is not None and filter_type.capitalize() == 'Gabor':
-        assert 'bs' in params
-        if 'sigmas' not in params:
-            assert 'lambdas' in params
-
-    #     params['sigmas'] = [utils.calc_sigma(lambd, b) for lambd in params['lambdas']
-    #                         for b in params['bs']]
-    
-    # if 'sigmas' in params and 'lambdas' not in params:
-    #     assert 'bs' in params
-    #     params['lambdas'] = [utils.calc_lambda(sigma, b) for sigma in params['sigmas']
-    #                          for b in params['bs']]
-
-    if verbose:
-        print(f"{filter_type.capitalize()} filter parameters:")
-        pprint(params)
+    if filter_type.capitalize() == 'Combined':
+        assert isinstance(params, dict)
+        assert len(params) > 1
+        configuration = params
+        for layer_type in configuration:
+            assert isinstance(configuration[layer_type], dict)
+    else:
+        # Assume an unnested dictionary has been passed
+        configuration = {filter_type: params}
 
     for ind, layer in enumerate(model.layers):
         # print(ind, layer.name)
@@ -273,44 +265,57 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
             x = inp
             print(f"{config['shape']}")
         elif ind == replace_layer:
-            if params is not None:  # Replace convolutional layer
-                print(f"Replacing layer {ind}: '{layer.name}' --> '{filter_type.lower()}_conv'...")
-                if use_initializer:
-                    if filter_type.lower() == 'gabor':
-                        n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
-                                                      * len(params['gammas']) * len(params['psis'])
-                        kernel_initializer = GaborInitializer(**params)
-                    elif filter_type.lower() == 'dog':
-                        n_kernels = len(params['sigmas']) * len(params['gammas']) * 2
-                        kernel_initializer = DifferenceOfGaussiansInitializer(**params)
-                    elif filter_type.lower() == 'low-pass':
-                        n_kernels = len(params['sigmas'])
-                        kernel_initializer = LowPassInitializer(**params)
-                    # When using this layer as the first layer in a model, provide the keyword argument 
-                    # input_shape (tuple of integers, does not include the batch axis), 
-                    # e.g. input_shape=(128, 128, 3) for 128x128 RGB pictures in data_format="channels_last".
+            for layer_type, params in configuration.items():
+                if params is not None:  # Replace convolutional layer
+                    print(f"Replacing layer {ind}: '{layer.name}' --> '{layer_type.lower()}_conv'...")
+                    if verbose:
+                        print(f"{layer_type.capitalize()} filter parameters:")
+                        pprint(params)
+                    if use_initializer:
+                        if layer_type.lower() == 'gabor':
+                            # Parse parameters
+                            assert 'bs' in params
+                            if 'sigmas' not in params:
+                                assert 'lambdas' in params
+                                # params['sigmas'] = [utils.calc_sigma(lambd, b) for lambd in params['lambdas']
+                                #                     for b in params['bs']]
 
-                    # Input shape: (batch, rows, cols, channels)
-                    # Output shape: (batch, new_rows, new_cols, filters)
-                    x = Conv2D(n_kernels, params['ksize'], padding='same', 
-                               activation='relu', use_bias=True,
-                            #    activation=None, use_bias=False,
-                               name=f"{filter_type.lower()}_conv",
-                               kernel_initializer=kernel_initializer)(x)
-                    # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
-                else:  # Deprecated
-                    assert isinstance(layer, tf.keras.layers.Conv2D)
-                    # Generate Gabor filters
-                    # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
-                    tensor = get_gabor_tensor(**params)
-                    x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
-                               name=f"{filter_type.lower()}_conv")(x)
-            else:
-                x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
-                                                 'config': layer.get_config()})(x)
-            if noise_std:
-                # Add noise after the convolutional layer
-                x = tf.keras.layers.GaussianNoise(stddev=noise_std)(x)
+                            # n_kernels = len(params['bs']) * len(params['sigmas']) * len(params['thetas']) \
+                            #                             * len(params['gammas']) * len(params['psis'])
+                            kernel_initializer = GaborInitializer(**params)
+                        elif layer_type.lower() == 'dog':
+                            # n_kernels = len(params['sigmas']) * len(params['gammas']) * 2
+                            kernel_initializer = DifferenceOfGaussiansInitializer(**params)
+                        elif layer_type.lower() == 'low-pass':
+                            # n_kernels = len(params['sigmas'])
+                            kernel_initializer = LowPassInitializer(**params)
+                        n_kernels = kernel_initializer.n_kernels
+                        # When using this layer as the first layer in a model, provide the keyword argument 
+                        # input_shape (tuple of integers, does not include the batch axis), 
+                        # e.g. input_shape=(128, 128, 3) for 128x128 RGB pictures in data_format="channels_last".
+
+                        # Input shape: (batch, rows, cols, channels)
+                        # Output shape: (batch, new_rows, new_cols, filters)
+                        x = Conv2D(n_kernels, params['ksize'], padding='same', 
+                                activation='relu', use_bias=True,
+                                #    activation=None, use_bias=False,
+                                name=f"{layer_type.lower()}_conv",
+                                kernel_initializer=kernel_initializer, 
+                                trainable=False)(x)
+                        # x = Conv2D(n_kernels, params['ksize'], padding='same', activation='relu', use_bias=True)(x)
+                    else:  # Deprecated
+                        assert isinstance(layer, tf.keras.layers.Conv2D)
+                        # Generate Gabor filters
+                        # tensor = get_gabor_tensor(ksize, sigmas, thetas, lambdas, gammas, psis)
+                        tensor = get_gabor_tensor(**params)
+                        x = Lambda(convolve_tensor, arguments={'kernel_tensor': tensor},
+                                name=f"{layer_type.lower()}_conv")(x)
+                else:
+                    x = tf.keras.layers.deserialize({'class_name': layer.__class__.__name__, 
+                                                    'config': layer.get_config()})(x)
+                if noise_std:
+                    # Add noise after the convolutional layer
+                    x = tf.keras.layers.GaussianNoise(stddev=noise_std)(x)
         # elif ind == replace_layer + 1 and params is not None:  # Replace next layer
         #     # Check input_shape matches output_shape?
         #     # x = Conv2D(**layers[layer].get_config())(x)
@@ -328,10 +333,10 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
     else:
         new_name = f"{filter_type}_{model.name}"
     model = Model(inputs=inp, outputs=x, name=new_name)
-    if use_initializer:
-        # Freeze weights of kernels
-        # model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
-        model.layers[replace_layer].trainable = False
+    # if use_initializer:
+    #     # Freeze weights of kernels
+    #     # model = Model(inputs=inp, outputs=x, name=f"{filter_type}_{model.name}")
+    #     model.layers[replace_layer].trainable = False
     return model
 
 
@@ -385,7 +390,7 @@ class DifferenceOfGaussiansInitializer(Initializer):
 #         assert sigma_s > sigma_c
 
     # TODO: Remove ksize as it is redundant when passing shape to call()
-    def __init__(self, ksize, sigmas, gammas):
+    def __init__(self, ksize, sigmas, gammas, verbose=0):
         if isinstance(ksize, (int, float)):
             self.ksize = (ksize, ksize)
         else:
@@ -396,6 +401,7 @@ class DifferenceOfGaussiansInitializer(Initializer):
         for gamma in gammas:
             assert gamma > 1
         self.gammas = gammas
+        self.verbose = verbose
 
     def __call__(self, shape, dtype=None):
         """Returns a tensor object initialized as specified by the initializer.
@@ -404,44 +410,65 @@ class DifferenceOfGaussiansInitializer(Initializer):
             dtype: Optional dtype of the tensor. If not provided use the initializer
             dtype.
         """
+        if self.verbose:
+            print(f"Shape passed to DifferenceOfGaussiansInitializer: {shape=}")
         if shape is None:
             ksize = self.ksize
+            n_channels_in = 1  # Assume monochrome inputs
+            n_channels_out = self.n_kernels
         else:
             ksize = tuple(shape[:2])
-            assert ksize == self.ksize, f"[ksize] Passed: {ksize}; Expected: {self.ksize}"
-            assert self.n_kernels == shape[-1], f"[n_kernels] Passed: {shape[-1]}; Expected: {self.n_kernels}"
+            n_channels_in = shape[2]
+            n_channels_out = shape[-1]
+            assert self.ksize == ksize, f"[ksize] Passed: {ksize}; Expected: {self.ksize}"
+            assert self.n_kernels == n_channels_out, f"[n_kernels] Passed: {n_channels_out}; Expected: {self.n_kernels}"
 
         kernels = []
         for sigma in self.sigmas:  # self.params['sigmas']:
             for gamma in self.gammas:
                 sigma_c, sigma_s = sigma, sigma*gamma
                 # Create centre
-                kern_c_x = cv2.getGaussianKernel(ksize[0], sigma_c)
-                kern_c_y = cv2.getGaussianKernel(ksize[1], sigma_c)
+                kern_c_x = cv2.getGaussianKernel(ksize[0], sigma_c, ktype=cv2.CV_64F)
+                kern_c_y = cv2.getGaussianKernel(ksize[1], sigma_c, ktype=cv2.CV_64F)
                 kern_c = np.outer(kern_c_x, kern_c_y)
                 kern_c /= np.sum(kern_c)
 
                 # Create surround
-                kern_s_x = cv2.getGaussianKernel(ksize[0], sigma_s)
-                kern_s_y = cv2.getGaussianKernel(ksize[1], sigma_s)
+                kern_s_x = cv2.getGaussianKernel(ksize[0], sigma_s, ktype=cv2.CV_64F)
+                kern_s_y = cv2.getGaussianKernel(ksize[1], sigma_s, ktype=cv2.CV_64F)
                 kern_s = np.outer(kern_s_x, kern_s_y)
                 kern_s /= np.sum(kern_s)
 
                 kern_on = kern_c - kern_s
                 kern_off = kern_s - kern_c
 
-                kern_on = kern_on.astype('float32')  # HACK
-                kern_off = kern_off.astype('float32')  # HACK
+                # kern_on = kern_on.astype('float32')  # HACK
+                # kern_off = kern_off.astype('float32')  # HACK
                 # kern_on = kern_on.astype(dtypes.as_dtype(dtype))
                 # kern_off = kern_off.astype(dtypes.as_dtype(dtype))
                 # kern_on = kern_on.astype(dtype)
                 # kern_off = kern_off.astype(dtype)
 
                 kern_on = K.expand_dims(kern_on, -1)
+                kern_on = K.tile(kern_on, (1, 1, n_channels_in))
                 kern_off = K.expand_dims(kern_off, -1)
+                kern_off = K.tile(kern_off, (1, 1, n_channels_in))
+                # kern_on = K.cast(kern_on, dtype)
+                # kern_off = K.cast(kern_off, dtype)
                 # kernels.append(kern)
                 kernels.extend([kern_on, kern_off])
-        return K.stack(kernels, axis=-1)
+        # return K.stack(kernels, axis=-1)
+        kernel_tensor = K.stack(kernels, axis=-1)
+
+        if dtype:
+            assert dtype in ('float16', 'float32', 'float64')
+            if self.verbose:
+                print(f"Casting to {dtype=}")
+        else:
+            dtype = 'float32'
+        kernel_tensor = K.cast(kernel_tensor, dtype)
+
+        return kernel_tensor
 
     def get_config(self):
         """Returns the configuration of the initializer as a JSON-serializable dict.
@@ -469,6 +496,7 @@ class GaborInitializer(Initializer):
             self.ksize = (ksize, ksize)
         else:
             self.ksize = tuple(ksize)
+#     def __init__(self, sigmas, bs, gammas, thetas, psis, verbose=0):
         self.sigmas = sigmas
         self.bs = bs
         self.gammas = gammas
@@ -492,13 +520,59 @@ class GaborInitializer(Initializer):
         """
         # return get_gabor_tensor(ksize, bs, sigmas, thetas, gammas, psis, lambdas=None)
         # return get_gabor_tensor(**self.params)
+        if self.verbose:
+            print(f"Shape passed to GaborInitializer: {shape=}")
         if shape is None:
             ksize = self.ksize
+            n_channels_in = 1  # Assume monochrome inputs
+            n_channels_out = self.n_kernels
         else:
             ksize = tuple(shape[:2])
-            assert self.n_kernels == shape[-1]
-        return get_gabor_tensor(ksize, self.bs, self.sigmas, 
-                                self.thetas, self.gammas, self.psis, self.verbose)
+            n_channels_in = shape[2]
+            n_channels_out = shape[-1]
+            assert self.ksize == ksize, f"[ksize] Passed: {ksize}; Expected: {self.ksize}"
+            assert self.n_kernels == n_channels_out, f"[n_kernels] Passed: {n_channels_out}; Expected: {self.n_kernels}"
+        # print(f'{ksize=}')
+        # return get_gabor_tensor(ksize, self.bs, self.sigmas, 
+        #                         self.thetas, self.gammas, self.psis, self.verbose)
+
+        gabors = []
+        for sigma in self.sigmas:
+            for theta in self.thetas:
+                # for lambd in lambdas:
+                for b in self.bs:
+                    lambd = calc_lambda(sigma, b)
+                    for gamma in self.gammas:
+                        for psi in self.psis:
+                            gf = cv2.getGaborKernel(ksize, sigma, theta, 
+                                                    lambd, gamma, psi, 
+                                                    # ktype=cv2.CV_32F)
+                                                    ktype=cv2.CV_64F)
+                            gf = K.expand_dims(gf, -1)
+                            gf = K.tile(gf, (1, 1, n_channels_in))  # Generalise for multi-channel inputs
+                            gabors.append(gf)
+        assert len(gabors) == self.n_kernels
+        if self.verbose:
+            print(f"Created {self.n_kernels} kernels.")
+            if self.verbose > 1:
+                print("bs:", self.bs)
+                print("sigmas:", self.sigmas)
+                print("thetas:", self.thetas)
+                print("gammas:", self.gammas)
+                print("psis:", self.psis)
+
+        # print(gf.get_shape())
+        gf_tensor = K.stack(gabors, axis=-1)  # (ksize[0], ksize[1], 1, n_kernels)
+        if dtype:
+            assert dtype in ('float16', 'float32', 'float64')
+            if self.verbose:
+                print(f"Casting to {dtype=}")
+        else:
+            dtype = 'float32'
+        gf_tensor = K.cast(gf_tensor, dtype)  # tf.keras.backend.cast
+        if self.verbose:
+            print(f"Generated tensor shape: {gf_tensor.get_shape()}")
+        return gf_tensor
 
     def get_config(self):
         """Returns the configuration of the initializer as a JSON-serializable dict.
@@ -521,7 +595,7 @@ class GaborInitializer(Initializer):
 class LowPassInitializer(Initializer):
     """Low Pass filter Initializer class."""
 
-    def __init__(self, ksize, sigmas):  #params, dtype=dtypes.float32):
+    def __init__(self, ksize, sigmas, verbose=0):  #params, dtype=dtypes.float32):
         # self.dtype = dtypes.as_dtype(dtype)
         # self.params = params
         # TODO: Deprecate ksize in (initialisation of) filter parameters
@@ -531,6 +605,7 @@ class LowPassInitializer(Initializer):
             self.ksize = tuple(ksize)
         self.sigmas = sigmas
         self.n_kernels = len(self.sigmas)
+        self.verbose = verbose
 
     def __call__(self, shape, dtype=None):  #, partition_info=None):
         """Returns a tensor object initialized as specified by the initializer.
@@ -542,16 +617,20 @@ class LowPassInitializer(Initializer):
             tensor.
         """
 
-        if dtype is None:
-            dtype = 'float32'  # floatx()
-        # kernel_size = self.params['ksize']
+        # if dtype is None:
+        #     dtype = 'float32'  # floatx()
+        # ksize = self.params['ksize']
         if shape is None:
-            kernel_size = self.ksize
+            ksize = self.ksize
+            n_channels_in = 1  # Assume monochrome inputs
+            n_channels_out = self.n_kernels
         else:
-            kernel_size = tuple(shape[:2])
-            assert self.n_kernels == shape[-1]
-#         assert kernel_size == shape[0] == shape[1]
-#         sigma = self.params['sigma']
+            ksize = tuple(shape[:2])
+            n_channels_in = shape[2]
+            n_channels_out = shape[-1]
+            assert self.ksize == ksize, f"[ksize] Passed: {ksize}; Expected: {self.ksize}"
+            assert self.n_kernels == n_channels_out, f"[n_kernels] Passed: {n_channels_out}; Expected: {self.n_kernels}"
+        # assert ksize == shape[0] == shape[1]
 
         # https://stackoverflow.com/questions/29731726/how-to-calculate-a-gaussian-kernel-matrix-efficiently-in-numpy
         # Method 1
@@ -561,21 +640,30 @@ class LowPassInitializer(Initializer):
 #         inp[kernel_size//2, kernel_size//2] = 1
 #         # gaussian-smooth the dirac, resulting in a gaussian filter mask
 #         return low_pass_filter(inp, std)[:,:,0]
-        
+
         # Method 2
         kernels = []
         for sigma in self.sigmas:  # self.params['sigmas']:
-            kern_x = cv2.getGaussianKernel(kernel_size[0], sigma)
-            kern_y = cv2.getGaussianKernel(kernel_size[1], sigma)
+            kern_x = cv2.getGaussianKernel(ksize[0], sigma)
+            kern_y = cv2.getGaussianKernel(ksize[1], sigma)
             kern = np.outer(kern_x, kern_y)
             kern /= np.sum(kern)
-            kern = kern.astype('float32')  # HACK
+            # kern = kern.astype('float32')  # HACK
             # kern = kern.astype(dtypes.as_dtype(dtype))
             # kern = kern.astype(dtype)
             kern = K.expand_dims(kern, -1)
+            kern = K.tile(kern, (1, 1, n_channels_in))  # Generalise for multi-channel inputs
             kernels.append(kern)
-        return K.stack(kernels, axis=-1)
-#         return kern
+        # return K.stack(kernels, axis=-1)
+        tensor = K.stack(kernels, axis=-1)
+        if dtype:
+            assert dtype in ('float16', 'float32', 'float64')
+            if self.verbose:
+                print(f"Casting to {dtype=}")
+        else:
+            dtype = 'float32'
+        tensor = K.cast(tensor, dtype)
+        return tensor
 
     def get_config(self):
         """Returns the configuration of the initializer as a JSON-serializable dict.
@@ -653,6 +741,9 @@ def load_model(data_set, name, verbose=0):
         custom_objects = {'DifferenceOfGaussiansInitializer': DifferenceOfGaussiansInitializer(**filter_params)}
     elif convolution == 'Low-pass':
         custom_objects = {'LowPassInitializer': LowPassInitializer(**filter_params)}
+    elif convolution == 'Combined':
+        custom_objects = {'DifferenceOfGaussiansInitializer': DifferenceOfGaussiansInitializer(**filter_params['DoG']),
+                          'GaborInitializer': GaborInitializer(**filter_params['Gabor'])}
     else:
         custom_objects = None
     if verbose:

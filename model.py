@@ -208,6 +208,24 @@ elif convolution == 'DoG':
               'gammas': [1.6, 1.8, 2, 2.2]
              }
     mod = f'DoG_{base}'
+elif convolution.capitalize() == 'Combined':
+    params = {
+        'DoG': {
+            'ksize': (63, 63),
+            'sigmas': [1, 2, 4, 8],
+            'gammas': [1.6, 1.8, 2, 2.2]
+            },
+        'Gabor': {
+            'ksize': (63, 63),
+            'sigmas': [8],
+            'gammas': [0.5], 
+            'bs': np.linspace(1, 2.6, num=3).tolist(),
+            'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
+            'psis': [np.pi/2, 3*np.pi/2]
+            },
+        }
+    mod = f"{'+'.join(list(params))}_{base}"
+    # mod = f'DoG+Gabor_{base}'
 elif convolution.capitalize() == 'Low-pass':
     params = {'ksize': (63, 63),
 #               'sigmas': [8]
@@ -477,11 +495,11 @@ model = model_base[base.lower().replace('-', '')](include_top=True,
 
 # if add_noise:
 #     model = utils.insert_noise_layer(model, layer=None, std=noise)
-model = utils.substitute_layer(model, filter_params, 
+model = utils.substitute_layer(model, filter_params,
                                filter_type=convolution,
                                replace_layer=None,
-                               input_shape=image_size, 
-                               colour_input=colour, 
+                               input_shape=image_size,
+                               colour_input=colour,
                                use_initializer=use_initializer,
                                noise_std=internal_noise)
 if n_classes != output_classes:  # 1000:
