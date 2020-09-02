@@ -266,7 +266,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
                     original_shape = config['batch_input_shape'][1:]
                     config['shape'] = (*original_shape[:-1], 1)
             else:
-                raise UserError(f"Unknown colour_input: {colour_input}")
+                raise ValueError(f"Unknown colour_input: {colour_input}")
             del config['batch_input_shape']
             inp = Input(**config)
             # inp = layer
