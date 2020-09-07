@@ -261,8 +261,7 @@ models_dir = '/work/models'
 logs_dir = '/work/logs'
 results_dir = '/work/results'
 os.makedirs(models_dir, exist_ok=True)
-# label is ignored if empty
-save_to_dir = os.path.join('/work/results/', label)
+save_to_dir = os.path.join('/work/results/', label)  # label ignored if empty
 os.makedirs(save_to_dir, exist_ok=True)
 
 if save_predictions:
@@ -317,7 +316,7 @@ if image_path and os.path.isdir(image_path):
 
 # if test_image_path and os.path.isdir(test_image_path):
 
-    
+
 # Set up stimuli
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()  # RGB format
 x_train = np.expand_dims(np.dot(x_train, luminance_weights), axis=-1)
@@ -522,12 +521,6 @@ full_path_to_model = os.path.join(model_output_dir, f"{epochs:03d}_epochs")
 
 print(f"Trial: {trial}; seed={seed}", flush=True)
 
-# if use_initializer or "gabor" not in mod.lower():
-# if use_initializer and not ("gabor" in mod.lower() or "low-pass" in mod.lower()):
-#     model_data_file = f"{full_path_to_model}_weights.{extension}"
-# else:  # Save whole model since metadata can not be saved as JSON
-#     model_data_file = f"{full_path_to_model}.{extension}"
-
 model_data_file = f"{full_path_to_model}_weights.{extension}"
 
 if not train:
@@ -604,9 +597,7 @@ else:
         callbacks.append(csv_logger_cb)
 
         # Create a callback that saves the model's weights
-        # checkpoint_path = os.path.join(models_dir, f"{model_name}.ckpt")
-        checkpoint_path = os.path.join(models_dir, "model.ckpt")
-        # checkpoint_dir = os.path.dirname(checkpoint_path)
+        checkpoint_path = os.path.join(models_dir, "model.ckpt")  # f"{model_name}.ckpt"
         checkpoint_cb = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
                                                            save_weights_only=True,
                                                            verbose=0)
@@ -614,9 +605,7 @@ else:
 
         save_freq = None  # 10
         if save_freq:
-            # checkpoint_path = os.path.join(os.path.join(models_dir, model_name, "{epoch:03d}_epochs.h5"))
-            weights_path = os.path.join(os.path.join(model_output_dir, "{epoch:03d}_epochs.h5"))
-            # os.makedirs(os.path.join(models_dir, model_name), exist_ok=True)
+            weights_path = os.path.join(model_output_dir, "{epoch:03d}_epochs.h5")
             weights_cb = tf.keras.callbacks.ModelCheckpoint(filepath=weights_path,
                                                             save_weights_only=True,
                                                             verbose=1, period=save_freq)
@@ -690,24 +679,14 @@ else:
 
         learning_curves = os.path.join(logs_dir, f'{model_name}.png')  # f'{mod}_train_CIFAR10_{trial}.png')
         plots.plot_history(history, chance=1/n_classes, filename=learning_curves)
-        # Alternative
-        # from matplotlib import pyplot as plt
-        # fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=(12,12))
-        # plots.plot_loss(history, ax=ax[0])
-        # plots.plot_accuracy(history, chance=1/n_classes, ax=ax[1])
-        # fig.savefig(f'{mod}_train_CIFAR10_{trial}_old.png')
-        # Old method
-        # plots.plot_accuracy(history, chance=1/n_classes, 
-        #                     filename=f'{mod}_train_CIFAR10_{trial}.png')
-        # plots.plot_loss(history, filename=f'{mod}_train_CIFAR10_loss_{trial}.png')
+
         t_elapsed = time.time() - t0
         print(f"{model_name} training finished [{str(timedelta(seconds=t_elapsed))}]!", flush=True)
 print("=" * 80)
 
 if skip_test:
     print("Skipping testing.", flush=True)
-    # Clear GPU memory
-    tf.keras.backend.clear_session()
+    tf.keras.backend.clear_session()  # Clear GPU memory
     print("=" * 80)
     sys.exit()
 
@@ -986,7 +965,6 @@ for noise, noise_function, levels in noise_types:
             #     pred_writer = csv.
             predictions_file = os.path.join(save_to_dir, 'predictions', 
                                             f'{model_name}_{noise.replace(" ", "_").lower()}_L{l_ind+1:02d}.csv')
-            # header = [f'p(class={c})' for c in classes] # range(n_classes)]
             np.savetxt(predictions_file, predictions, delimiter=',', 
                        header=','.join([f'p(class={c})' for c in classes]))
 
@@ -1001,7 +979,6 @@ for noise, noise_function, levels in noise_types:
         # rows.append(row)
     print("-" * 80)
 
-# print(f'Models: {os.path.join(models_dir, label)}')
 print(f'Models: {model_output_dir}')
 print(f'Logs: {logs_dir}')  # if args['log']: logdir
 print(f'Results: {save_to_dir}')
@@ -1019,10 +996,5 @@ print("=" * 80)
 
 # Clear GPU memory
 tf.keras.backend.clear_session()
-
-# plt.figure()
-# sns.relplot(x='Level', y='Accuracy', row='Model', col='Noise', data=results)
-# plt.figure()
-# sns.lineplot(x='Level', y='Accuracy', kind='line', data=results)
 
 # return model, results
