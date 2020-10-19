@@ -578,7 +578,8 @@ def plot_perturbations(df, tag=None, landscape=True, ncols=2, verbose=1):
             ax = sns.lineplot(x='Level', y='Accuracy', style='Base', 
                               hue='Convolution', hue_order=sorted(convolutions),
                               data=df[df.Noise==noise], ax=ax)
-            ax.get_legend().set_visible(False)
+            if ax.get_legend():
+                ax.get_legend().set_visible(False)
             ax.set_title(noise)
             ax.set_ylim([0, 1])
             ax.set_yticks(np.linspace(0, 1, num=11))
@@ -595,7 +596,8 @@ def plot_perturbations(df, tag=None, landscape=True, ncols=2, verbose=1):
                 x = df.query(f"Noise == '{noise}' and Model == '{models[0]}' and Trial == 1").Level.to_numpy()
                 ax.set_xticks(x)
         
-        ax.get_legend().set_visible(True)  # Show in final subfigure
+        if ax.get_legend():
+            ax.get_legend().set_visible(True)  # Show in final subfigure
         plt.tight_layout()
         if tag is not None:
             fig.savefig(f'/work/results/perturbations_{tag}.png')
