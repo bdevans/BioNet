@@ -464,7 +464,7 @@ print('=' * 80)  # Build/load model
 print(f"Creating {model_name}...", flush=True)
 # Create the model
 
-from all_cnn.networks import allcnn
+from all_cnn.networks import allcnn, allcnn_imagenet
 
 # get_all_cnn = functools.partial(allcnn, image_shape=image_shape, n_classes=n_classes)
 
@@ -472,6 +472,7 @@ from all_cnn.networks import allcnn
 def get_all_cnn(include_top=True, weights=None, input_shape=image_shape, classes=n_classes):
     # model = functools.partial(allcnn, image_shape=image_shape, n_classes=n_classes)
     return allcnn(image_shape=input_shape, n_classes=n_classes)
+    # return allcnn_imagenet(image_shape=input_shape, n_classes=n_classes)
 
 model_base = {'vgg16': tf.keras.applications.vgg16.VGG16, 
               'vgg19': tf.keras.applications.vgg19.VGG19,
@@ -515,6 +516,7 @@ if verbose:
     model.summary()
 
 # TODO: Move to new SavedModel format
+# https://www.tensorflow.org/tutorials/keras/save_and_load#savedmodel_format
 model_output_dir = os.path.join(models_dir, label, model_name)
 os.makedirs(model_output_dir, exist_ok=True)
 full_path_to_model = os.path.join(model_output_dir, f"{epochs:03d}_epochs")
@@ -561,7 +563,6 @@ else:
                 height_shift_range=0.1,
                 horizontal_flip=True,
                 vertical_flip=False)
-        
     else:
         data_gen = ImageDataGenerator(#preprocessing_function=prep_image,
                                         featurewise_center=True, 
