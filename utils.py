@@ -56,7 +56,7 @@ def get_simulation_params(sim_set, model_name, models_dir='/work/models'):
     return sim
 
 
-def load_images(path):
+def load_images(path, shuffle=True, verbose=1):
 
     image_set = {}
     for root, dirs, files in os.walk(path):
@@ -71,12 +71,15 @@ def load_images(path):
     image_dims = plt.imread(os.path.join(path, categories[0],
                             image_set[categories[0]][0])).shape
 
-    print(image_dims)
+    disable = True
+    if verbose:
+        print(image_dims)
+        disable = False
     X = np.zeros((n_images, image_dims[0], image_dims[1], 1), dtype='float16')  # 'float32'
     y = np.zeros((n_images, len(categories)), dtype=int)
 
     tally = 0
-    for c, (cat, files) in enumerate(tqdm(image_set.items(), desc=path)):
+    for c, (cat, files) in enumerate(tqdm(image_set.items(), desc=path, disable=disable)):
         for i, image in enumerate(files):
             cimg = cv2.imread(os.path.join(path, cat, image))  # cv2 opens in BGR
             X[i+tally] = np.expand_dims(cv2.cvtColor(cimg, cv2.COLOR_BGR2GRAY), axis=-1)
@@ -86,6 +89,9 @@ def load_images(path):
         y[tally:tally+len(files), c] = True
         tally += len(files)
 
+    if not shuffle:
+        return image_set, X, y
+    
     shuffle = np.random.permutation(y.shape[0])
 
     return image_set, X[shuffle], y[shuffle]
