@@ -1,6 +1,7 @@
 import os
 import json
 from pprint import pprint
+import warnings
 
 import numpy as np
 import tensorflow as tf
@@ -297,7 +298,15 @@ def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, fi
 
 
 def plot_most_activating_features(data_set, model_name, layer=None, filter_index=None, 
-                                  epochs=100, step_size=1., ax=None, fig_sf=2):
+                                  epochs=100, step_size=1., seed=None, ax=None, 
+                                  fig_sf=2, colourbar=True, 
+                                  save_dir="/work/results/activating_features"):
+
+    # Set the RNG seed for reproducibility
+    if seed is None:
+        seed = np.random.randint(np.iinfo(np.int32).max)
+    assert 0 <= seed < np.iinfo(np.int32).max
+    np.random.seed(seed)
 
     # stop_layer = 'flatten'
     # stop_layer = 'block3_conv1'
@@ -306,13 +315,24 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
     model = load_model(data_set, model_name)
 
     if layer is None:
-        layer_name, layer_ind = find_conv_layer(model)
+        layer_name, layer_index = find_conv_layer(model)
         # layer = model.layers[layer_ind]
-        layer = layer_ind
-    if isinstance(layer, str):
+        layer = layer_index
+
+    if isinstance(layer, int):
+        layer_index = layer
+        layer = model.get_layer(index=layer_index)
+    elif isinstance(layer, str):
+        layer_name = layer
+        layer_index = None
+        for ind, layer in enumerate(model.layers):
+            if layer.name == layer_name:
+                layer_index = ind
+                break
+        # [model.layers[l].name == layer_name for l in len(model.layers)]
         layer = model.get_layer(name=layer_name)
-    elif isinstance(layer, int):
-        layer = model.get_layer(index=layer)
+    else:
+        warnings.warn(f"Unknown layer passed: {layer} ({type(layer)})", UserWarning)
 
     # stop_index = model.layers.index(model.get_layer(stop_layer))
     # nrows = stop_index-1  # len(model.layers)-1
@@ -350,8 +370,12 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
         filter_indices = [filter_index]
         title_prefix = f"{data_set}/{model_name}: "
     # for ax, layer in zip(axes.ravel(), model.layers[1:stop_index]):
-        
+
     submodel = tf.keras.models.Model([model.inputs[0]], [layer.output])
+    feature_maps = {}
+    # out_dir = os.path.join(save_dir, str(seed))
+    out_dir = save_dir
+    os.makedirs(out_dir, exist_ok=True)
 
     for ax, filter_index in zip(axes.ravel(), filter_indices):
         # Initiate random noise
@@ -359,7 +383,7 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
         input_img_data = (input_img_data - 0.5) * 20 #+ 128.
         # Cast random noise from np.float64 to tf.float32 Variable
         input_img_data = tf.Variable(tf.cast(input_img_data, tf.float32))
-        
+
         # Iterate gradient ascents
         for _ in range(epochs):
             with tf.GradientTape() as tape:
@@ -368,8 +392,16 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
             grads = tape.gradient(loss_value, input_img_data)
             normalized_grads = grads / (tf.sqrt(tf.reduce_mean(tf.square(grads))) + 1e-5)
             input_img_data.assign_add(normalized_grads * step_size)
-        cbmap = ax.imshow(np.squeeze(input_img_data.numpy()))
+        feature_map = np.squeeze(input_img_data.numpy())
+        feature_maps[filter_index] = feature_map
+        maf_filename = f'{data_set}_{model_name}_L{layer_index}_C{filter_index}.npy'
+        with open(os.path.join(out_dir, maf_filename), 'wb') as maf:
+            np.save(maf, feature_map)
+        cbmap = ax.imshow(feature_map)
+        ax.set_aspect('equal')
         ax.set_title(f"{title_prefix}{layer.name}[{filter_index}]")
-        fig.colorbar(cbmap, ax=ax)
+        if colourbar:
+            fig.colorbar(cbmap, ax=ax)
     # input_img_data.numpy().shape
     # plt.imshow(np.squeeze(input_img_data.numpy()))
+    return layer.name, feature_maps
