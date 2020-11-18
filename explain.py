@@ -300,7 +300,7 @@ def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, fi
 def plot_most_activating_features(data_set, model_name, layer=None, filter_index=None, 
                                   epochs=100, step_size=1., seed=None, ax=None, 
                                   fig_sf=2, colourbar=True, 
-                                  save_dir="/work/results/activating_features"):
+                                  results_dir="/work/results", fresh=False):
 
     # Set the RNG seed for reproducibility
     if seed is None:
@@ -322,6 +322,7 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
     if isinstance(layer, int):
         layer_index = layer
         layer = model.get_layer(index=layer_index)
+        layer_name = layer.name
     elif isinstance(layer, str):
         layer_name = layer
         layer_index = None
@@ -374,34 +375,50 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
     submodel = tf.keras.models.Model([model.inputs[0]], [layer.output])
     feature_maps = {}
     # out_dir = os.path.join(save_dir, str(seed))
-    out_dir = save_dir
+    # out_dir = save_dir
+    # os.makedirs(out_dir, exist_ok=True)
+    # results_dir='/work/results'
+    out_dir = os.path.join(results_dir, data_set, 'activating_features')
     os.makedirs(out_dir, exist_ok=True)
 
     for ax, filter_index in zip(axes.ravel(), filter_indices):
-        # Initiate random noise
-        input_img_data = np.random.random((1, 224, 224, 1))
-        input_img_data = (input_img_data - 0.5) * 20 #+ 128.
-        # Cast random noise from np.float64 to tf.float32 Variable
-        input_img_data = tf.Variable(tf.cast(input_img_data, tf.float32))
+        
+        maf_filename = os.path.join(out_dir, f'{model_name}_L{layer_index}_C{filter_index}.npy')
+        if os.path.isfile(maf_filename) and not fresh:
+            feature_map = np.load(maf_filename)
 
-        # Iterate gradient ascents
-        for _ in range(epochs):
-            with tf.GradientTape() as tape:
-                outputs = submodel(input_img_data)
-                loss_value = tf.reduce_mean(outputs[:, :, :, filter_index])
-            grads = tape.gradient(loss_value, input_img_data)
-            normalized_grads = grads / (tf.sqrt(tf.reduce_mean(tf.square(grads))) + 1e-5)
-            input_img_data.assign_add(normalized_grads * step_size)
-        feature_map = np.squeeze(input_img_data.numpy())
-        feature_maps[filter_index] = feature_map
-        maf_filename = f'{data_set}_{model_name}_L{layer_index}_C{filter_index}.npy'
-        with open(os.path.join(out_dir, maf_filename), 'wb') as maf:
-            np.save(maf, feature_map)
+        else:
+            # Initiate random noise
+            input_img_data = np.random.random((1, 224, 224, 1))
+            input_img_data = (input_img_data - 0.5) * 20 #+ 128.
+            # Cast random noise from np.float64 to tf.float32 Variable
+            input_img_data = tf.Variable(tf.cast(input_img_data, tf.float32))
+
+            # Iterate gradient ascents
+            for _ in range(epochs):
+                with tf.GradientTape() as tape:
+                    outputs = submodel(input_img_data)
+                    loss_value = tf.reduce_mean(outputs[:, :, :, filter_index])
+                grads = tape.gradient(loss_value, input_img_data)
+                normalized_grads = grads / (tf.sqrt(tf.reduce_mean(tf.square(grads))) + 1e-5)
+                input_img_data.assign_add(normalized_grads * step_size)
+            feature_map = np.squeeze(input_img_data.numpy())
+            # feature_maps[filter_index] = feature_map
+
+            with open(maf_filename, 'wb') as maf:
+                np.save(maf, feature_map)
+
         cbmap = ax.imshow(feature_map)
         ax.set_aspect('equal')
-        ax.set_title(f"{title_prefix}{layer.name}[{filter_index}]")
+        ax.set_title(f"{title_prefix}{layer_name}[{filter_index}]")
         if colourbar:
             fig.colorbar(cbmap, ax=ax)
+
+        feature_maps[filter_index] = feature_map
+    
+    # del layer
+    del model
+    tf.keras.backend.clear_session()
     # input_img_data.numpy().shape
     # plt.imshow(np.squeeze(input_img_data.numpy()))
-    return layer.name, feature_maps
+    return layer_name, feature_maps
