@@ -112,12 +112,10 @@ def get_activations(image_path, data_set, model_name, layer_id=None, verbose=0):
 
     model = load_model(data_set, model_name, verbose=verbose)
     # Model to examine
-    # model = tf.keras.applications.resnet50.ResNet50(weights='imagenet', include_top=True)
     input_shape = model.input.get_shape().as_list()
     if verbose:
         print(f"Input shape: {input_shape}")
 
-    # TODO
     if layer_id is None:
         (layer_name, layer_ind) = find_conv_layer(model)
         layer = model.get_layer(name=layer_id)
@@ -297,9 +295,9 @@ def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, fi
     return #(fig, axes)
 
 
-def plot_most_activating_features(data_set, model_name, layer=None, filter_index=None, 
-                                  epochs=100, step_size=1., seed=None, ax=None, 
-                                  fig_sf=2, colourbar=True, 
+def plot_most_activating_features(data_set, model_name, layer=None, filter_index=None,
+                                  epochs=100, step_size=1., seed=None, ax=None,
+                                  fig_sf=2, colourbar=True,
                                   results_dir="/work/results", fresh=False):
 
     # Set the RNG seed for reproducibility
