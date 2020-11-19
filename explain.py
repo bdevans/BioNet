@@ -368,6 +368,7 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
         else:
             fig = ax.figure
         axes = np.array([ax])
+        assert filter_index < layer.output.shape[-1]
         filter_indices = [filter_index]
         title_prefix = f"{data_set}/{model_name}: "
     # for ax, layer in zip(axes.ravel(), model.layers[1:stop_index]):
