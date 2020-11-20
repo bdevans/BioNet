@@ -239,8 +239,12 @@ def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2
     return (fig, axes)
 
 
-def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, fig_sf=2, verbose=0):
+def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, patch_size=8, ax=None, verbose=0):
     
+    fig = None
+    if ax is None:
+        fig, ax = plt.subplots()  # figsize=figsize)
+
     # Create function to apply a grey patch on an image
     def apply_grey_patch(image, top_left_x, top_left_y, patch_size):
         patched_image = np.array(image, copy=True)
@@ -271,7 +275,7 @@ def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, fi
 
 
     # CAT_CLASS_INDEX = 5 #281  # Imagenet tabby cat class index
-    PATCH_SIZE = 32 #40
+    PATCH_SIZE = patch_size  # 16 #32 #40
 
     sensitivity_map = np.zeros((img.shape[0], img.shape[1]))
 
@@ -289,10 +293,10 @@ def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, fi
             ] = confidence
 
 
-    plt.imshow(sensitivity_map)
-    plt.colorbar()
+    cmap = ax.imshow(sensitivity_map) #, vmin=0.5, vmax=1)
+    # plt.colorbar()
 
-    return #(fig, axes)
+    return cmap #(fig, axes)
 
 
 def plot_most_activating_features(data_set, model_name, layer=None, filter_index=None,
