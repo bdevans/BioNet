@@ -42,7 +42,7 @@ def plot_grad_cam(data_set, model_name, test_set=None, image_weight=0.7, fig_sf=
     # Instantiation of the explainer
     explainer = GradCAM()
     
-    if test_set is None:
+    if test_set is None or test_set == 'all':
         test_sets = all_test_sets
     else:
         assert test_set in all_test_sets
