@@ -1,4 +1,5 @@
 import os
+import glob
 import functools
 import subprocess
 import math
@@ -10,18 +11,20 @@ import matplotlib.ticker as ticker
 import seaborn as sns
 import numpy as np
 from scipy import signal, fftpack
+import pandas as pd
 import cv2
-# import tensorflow as tf
+import tensorflow as tf
 from tensorflow.keras import backend as K
 from sklearn.metrics import auc
 from scipy.integrate import simps
 
-from GaborNet.utils import calc_sigma, calc_lambda  # calc_bandwidth,
+from GaborNet.utils import find_conv_layer, calc_sigma, calc_lambda  # calc_bandwidth,
 from GaborNet.preparation import (cifar_wrapper, sanity_check, 
                                   invert_luminance, get_noise_preprocessor)
+from GaborNet.config import classes, n_classes, luminance_weights
 
 
-luminance_weights = np.array([0.299, 0.587, 0.114])
+# luminance_weights = np.array([0.299, 0.587, 0.114])
 
 def inspect_image(image_path):
     """Plot image with Luminance Histogram, Cumulative Luminance Histogram 
@@ -205,6 +208,36 @@ def plot_history(history, chance=None, metrics=None, filename=None, figsize=(12,
     if filename:
         fig.savefig(filename)
     return (fig, ax)
+
+
+def plot_model_kernels(model, layers=None, fig_sf=1):
+
+    if layers is None:
+        layer_name, layer_ind = find_conv_layer(model, first=True)
+        layers = [layer_ind]
+
+    results = {}
+    for layer_ind in layers:
+        layer = model.layers[layer_ind]
+        assert isinstance(layer, tf.keras.layers.Conv2D)
+
+        filters, biases = layer.get_weights()
+        print(layer_ind, layer.name, filters.shape)
+
+        n_channels_in = filters.shape[-2]
+        n_channels_out = filters.shape[-1]
+        fig, axes = plt.subplots(nrows=n_channels_in, ncols=n_channels_out, sharex=True, sharey=True, squeeze=False, figsize=(n_channels_out*fig_sf, n_channels_in*fig_sf))
+        for c_in in range(n_channels_in):
+            for c_out in range(n_channels_out):
+                axes[c_in, c_out].imshow(filters[:, :, c_in, c_out])
+                axes[c_in, c_out].set_xticks([])
+                axes[c_in, c_out].set_yticks([])
+                if c_in == n_channels_in - 1:
+                    axes[c_in, c_out].set_xlabel(c_out)
+                if c_out == 0:
+                    axes[c_in, c_out].set_ylabel(c_in)
+        results[layer.name] = (filters, biases)
+    return results
 
 
 def plot_gabor_filters(params, images=None, use_gpu=True, fontsize=20, space=0.15, verbose=0):
@@ -436,16 +469,16 @@ def plot_image_predictions(label, models, top_k=3, params=None, gpu=None):
     #           'sigmas': [8]}
 
     test_sets = ['line_drawings', 'silhouettes', 'contours', 'scharr']
-    luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma
+    # luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma
     n_samples = 10
-    n_classes = 10
+    # n_classes = 10
     rescale = 1/255
     fig_sf = 2
 
 
     def get_predictions(file):
-        classes = ['airplane', 'automobile', 'bird', 'cat', 'deer',
-                   'dog', 'frog', 'horse', 'ship', 'truck']
+        # classes = ['airplane', 'automobile', 'bird', 'cat', 'deer',
+        #            'dog', 'frog', 'horse', 'ship', 'truck']
         probabilities = np.loadtxt(file, delimiter=',')
         rankings = np.argsort(probabilities, axis=1)
         predictions = []
@@ -546,7 +579,7 @@ def plot_image_predictions(label, models, top_k=3, params=None, gpu=None):
                 f"Created figure: {output}"
 
 
-def plot_perturbations(df, tag=None, landscape=True, ncols=2, verbose=1):
+def plot_perturbations(df, tag=None, landscape=True, wrap=5, fig_sf=2, verbose=0):
     """Plot a grid of performance versus level curves for a battery of noise perturbations."""
 
     noise_types = ["Uniform", "Salt and Pepper", "High Pass", "Low Pass", 
@@ -568,11 +601,15 @@ def plot_perturbations(df, tag=None, landscape=True, ncols=2, verbose=1):
     with sns.axes_style("darkgrid"):
 
         if landscape:
-            fig, axes = plt.subplots(ncols, int(math.ceil(len(noise_types)/ncols)),
-                                     sharey=True, squeeze=True, figsize=(24,12))
+            ncols = wrap
+            nrows = int(math.ceil(len(noise_types)/ncols))
+            # fig, axes = plt.subplots(ncols, int(math.ceil(len(noise_types)/ncols)),
+            #                          sharey=True, squeeze=True, figsize=(24,12))
         else:  # portrait
-            fig, axes = plt.subplots(int(math.ceil(len(noise_types)/ncols)), ncols, 
-                                     sharey=True, squeeze=True, figsize=(12,24))
+            ncols = int(math.ceil(len(noise_types)/ncols))
+            nrows = wrap
+        fig, axes = plt.subplots(nrows, ncols, sharey=True, squeeze=True, 
+                                 figsize=(ncols * fig_sf, nrows * fig_sf))
         
         for (noise, ax) in zip(noise_types, axes.ravel()):
             ax = sns.lineplot(x='Level', y='Accuracy', style='Base', 
@@ -594,7 +631,9 @@ def plot_perturbations(df, tag=None, landscape=True, ncols=2, verbose=1):
 
             if noise in ["Phase Scrambling", "Rotation", "Invert"]:
                 x = df.query(f"Noise == '{noise}' and Model == '{models[0]}' and Trial == 1").Level.to_numpy()
+                x = sorted(list(set(x)))  # Get unique values
                 ax.set_xticks(x)
+                # print(x)
         
         if ax.get_legend():
             ax.get_legend().set_visible(True)  # Show in final subfigure
@@ -619,3 +658,85 @@ def plot_auc_ratios(df, tag=None):
             fig.savefig(f'/work/results/auc_{tag}.png')
 
     return fig, ax
+
+
+def inspect_results(label, seed="*", reference="VGG16", annotate="Convolution", save=False, 
+                    fig_sf=3, results_dir="/work/results", reference_dir="paper", verbose=0):
+
+    # Perturbation results
+    columns = ['Trial', 'Model', 'Convolution', 'Base', 'Weights', 
+               'Noise', 'Level', 'Loss', 'Accuracy']
+
+    # if seed is None:
+    #     file = "perturb_*.csv"
+    # else:
+    #     file = f"perturb_*s{seed}.csv"
+    pattern = os.path.join(results_dir, label, f"perturb_*s{seed}.csv")
+    if isinstance(reference, (list, tuple)):
+        references = [os.path.join(results_dir, reference_dir, f"perturb_{ref}_Set.csv") for ref in reference]
+    elif isinstance(reference, str):
+        references = [os.path.join(results_dir, reference_dir, f"perturb_{reference}_Set.csv")]  # Compare to standard VGG-16 results
+    else:
+        print(f"Unknown reference_set passed: {reference} ({type(reference)})")
+
+
+    df = pd.concat([pd.read_csv(filename) for filename in glob.glob(pattern)], ignore_index=True)
+    # if "imagenet" in filename.lower():
+    #     df["Weights"] = "imagenet"
+    # else:
+    #     df["Weights"] = "None"
+    df["Weights"] = df["Weights"].fillna("None")
+    df = df[columns]
+    df.sort_values(by=['Trial', 'Noise', 'Level'], inplace=True, ignore_index=True)
+    if save:
+        output = os.path.join(results_dir, label, f"perturb_{label}_Set.csv")
+        df.to_csv(output, index=False)  # Save new results
+    # df["Model"] = "*" + df["Model"]  # Preprend "*" to differentiate new results
+    # df["Base"] = "*" + df["Base"]  # Preprend "*" to differentiate new results
+    # df["Convolution"] = "*" + df["Convolution"]  # Preprend "*" to differentiate new results
+    if annotate:  # Preprend "*" to differentiate new results for plots
+        df[annotate] = "*" + df[annotate]
+    perturbations = pd.concat([df, *[pd.read_csv(ref) for ref in references]], ignore_index=True)
+
+    fig, axes = plot_perturbations(perturbations, label, fig_sf=fig_sf)
+
+    if verbose:
+        print(perturbations.pivot_table(values='Accuracy', columns='Noise', index=['Model'],
+                                        aggfunc=len, fill_value=0, margins=True))
+
+
+    # Generalisation results
+    aspect = 1.25  # width = height * aspect
+
+    pattern = os.path.join(results_dir, label, f"generalise_*_s{seed}.csv")
+    # output = os.path.join(results_dir, label, "generalise_Set.csv")
+    reference = os.path.join(results_dir, reference_dir, "generalise_Set.csv")  # Compare to standard results
+
+    df = pd.concat([pd.read_csv(filename) for filename in glob.glob(pattern)], ignore_index=True)
+    df.sort_values(by=['Trial', 'Convolution', 'Base'], inplace=True, ignore_index=True)  # , 'Set', 'Inverted'
+    # df.to_csv(output, index=False)  # Save new results
+    # generalisations = pd.concat([pd.read_csv(output), pd.read_csv(reference)], ignore_index=True)
+    # df["Base"] = "*" + df["Base"]  # Preprend "*" to differentiate new results
+    # df["Convolution"] = "*" + df["Convolution"]  # Preprend "*" to differentiate new results
+    if annotate:  # Preprend "*" to differentiate new results for plots
+        df[annotate] = "*" + df[annotate]
+    generalisations = pd.concat([df, pd.read_csv(reference)], ignore_index=True)
+
+    # hue_order = ['VGG16', 'VGG19', 'ALL-CNN']
+    models = generalisations.Base.unique().tolist()
+    hue_order = sorted(models)
+
+    # sns.set_context("talk")
+    with sns.axes_style("darkgrid"):
+        g = sns.catplot(x='Convolution', y='Accuracy', col='Set', row='Inverted', hue='Base', hue_order=hue_order, 
+                        data=generalisations, kind='bar', height=fig_sf, aspect=aspect)
+        g.set(ylim=(0, 1))
+        for ax in g.axes.ravel():
+            ax.axhline(y=1/n_classes, c='grey', ls='--')
+        g.savefig(os.path.join(results_dir, f"{label}_pred_accuracy.png"))
+
+    if verbose:
+        print(generalisations.pivot_table(values='Accuracy', columns=['Set', 'Inverted'], 
+                                          index=['Model'], aggfunc=len, fill_value=0, margins=True))
+
+    return perturbations, generalisations
