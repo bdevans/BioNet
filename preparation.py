@@ -286,7 +286,7 @@ def cifar_wrapper(f, rescale=1/255):
 
         # Assume this expects 2D arrays (224, 224) of RGB values in the range [0, 1]
         perturbed = f(np.squeeze(image))
-        
+
         assert 0 <= np.amin(perturbed), f"Min = {np.amin(perturbed)}"
         assert np.amax(perturbed) <= 1, f"Max = {np.amax(perturbed)}"
 
