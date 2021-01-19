@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-# dtype = 'float16'  # Not supported on Titan Xp
-# tf.keras.backend.set_floatx(dtype)
-# tf.keras.backend.set_epsilon(1e-4)  # Default 1e-7
-
 import os
 import sys
 import argparse
@@ -14,6 +10,7 @@ import csv
 import json
 from datetime import datetime, timedelta
 import time
+import gc
 
 import numpy as np
 import cv2
@@ -44,6 +41,18 @@ from GaborNet.preparation import (#as_perturbation_fn, as_greyscale_perturbation
                                   adjust_contrast, scramble_phases,
                                   rotate_image, adjust_brightness, 
                                   invert_luminance)
+from all_cnn.networks import allcnn, allcnn_imagenet
+
+# NOTE: Randomness and reproducibility
+# https://machinelearningmastery.com/reproducible-results-neural-networks-keras/
+# It is difficult to obtain precisely reproducible results with Tensorflow (although improved in TF2).
+# >> np.random.seed(seed)
+# >> random.seed(seed)
+# >> tf.set_random_seed(seed)
+# >> os.environ['PYTHONHASHSEED'] = '0'
+# However, when training on a GPU, the cuDNN stack introduces sources of "randomness" since the order of execution is not always guaranteed when running operations in parallel.
+# Currently, there is no such attempt to make the results reproducible - only to ensure that each run is sufficiently different when testing with noise. 
+
 
 # pprint.pprint(sys.path)
 print('+' * 80)  # Simulation metadata
@@ -52,6 +61,15 @@ print("\nTensorFlow:", tf.__version__)
 print(f"Channel ordering: {tf.keras.backend.image_data_format()}")  # TensorFlow: Channels last order.
 gpus = tf.config.experimental.list_physical_devices('GPU')
 pprint.pprint(gpus)
+
+
+# dtype = 'float16'  # Theoretically, not supported on Titan Xp
+# tf.keras.backend.set_floatx(dtype)
+# tf.keras.backend.set_epsilon(1e-4)  # Default 1e-7
+# In practice, this works for testing models trained with float32 backend but slows testing by ~14%. 
+# TODO: Try training on float16
+# tf.keras.backend.set_floatx('float16')  # Set default dtype to 16 bit
+print(f"Backend set to: {tf.keras.backend.floatx()}")  # Needed to stop OOM error with data_gen.flow() on TF>2.2
 
 # warnings.filterwarnings("ignore", "Corrupt EXIF data", UserWarning)
 warnings.filterwarnings("ignore", "tensorflow:Model failed to serialize as JSON.", Warning)
@@ -216,7 +234,7 @@ elif convolution.capitalize() == 'Combined':
             'gammas': [1.6, 1.8, 2, 2.2]
             },
         'Gabor': {
-            'ksize': (63, 63),
+            'ksize': (63, 63),  # TODO: Should this be reduced to reduce combined model size?
             'sigmas': [8],
             'gammas': [0.5], 
             'bs': np.linspace(1, 2.6, num=3).tolist(),
@@ -226,6 +244,59 @@ elif convolution.capitalize() == 'Combined':
         }
     mod = f"{'+'.join(list(params))}_{base}"
     # mod = f'DoG+Gabor_{base}'
+elif convolution.capitalize() == 'Combined-small':
+    params = {
+        'DoG': {
+            'ksize': (15, 15),
+            'sigmas': [1, 2, 4],
+            'gammas': [1.6, 1.8, 2, 2.2]
+            },
+        'Gabor': {
+            'ksize': (31, 31),
+            'sigmas': [4],
+            'gammas': [0.5], 
+            'bs': np.linspace(1, 2.6, num=3).tolist(),
+            'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
+            'psis': [np.pi/2, 3*np.pi/2]
+            },
+        }
+    mod = f"{'+'.join(list(params))}_{base}"
+    # mod = f'DoG+Gabor_{base}'
+    # mod = f'{convolution}_{base}'
+elif convolution.capitalize() == 'Combined-medium':
+    params = {
+        'DoG': {
+            'ksize': (15, 15),
+            'sigmas': [1, 2, 4, 8],
+            'gammas': [1.6, 1.8, 2, 2.2]
+            },
+        'Gabor': {
+            'ksize': (31, 31),
+            'sigmas': [8],
+            'gammas': [0.5], 
+            'bs': np.linspace(1, 2.6, num=3).tolist(),
+            'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
+            'psis': [np.pi/2, 3*np.pi/2]
+            },
+        }
+    mod = f"{'+'.join(list(params))}_{base}"
+elif convolution.capitalize() == 'Combined-trim':
+    params = {
+        'DoG': {
+            'ksize': (31, 31),
+            'sigmas': [1, 2, 4, 8],
+            'gammas': [1.6, 1.8, 2, 2.2]
+            },
+        'Gabor': {
+            'ksize': (31, 31),
+            'sigmas': [8],
+            'gammas': [0.5], 
+            'bs': np.linspace(1, 2.6, num=3).tolist(),
+            'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
+            'psis': [np.pi/2, 3*np.pi/2]
+            },
+        }
+    mod = f"{'+'.join(list(params))}_{base}"
 elif convolution.capitalize() == 'Low-pass':
     params = {'ksize': (63, 63),
 #               'sigmas': [8]
@@ -275,6 +346,7 @@ else:
     image_prefix = ''
 
 print('=' * 80)
+
 
 # Hardcode noise levels
 n_levels = 11
@@ -350,7 +422,7 @@ if upscale:
         x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
         x_test = x_test.repeat(7, axis=1).repeat(7, axis=2)
 
-# NOTE: This is later overridden by the ImageDataGenerator which has 'float32' as the default
+# NOTE: This is later overridden by the ImageDataGenerator to tf.keras.backend.floatx() (default: 'float32')
 x_train = x_train.astype(np.float16)
 x_test = x_test.astype(np.float16)
 
@@ -464,7 +536,6 @@ print('=' * 80)  # Build/load model
 print(f"Creating {model_name}...", flush=True)
 # Create the model
 
-from all_cnn.networks import allcnn, allcnn_imagenet
 
 # get_all_cnn = functools.partial(allcnn, image_shape=image_shape, n_classes=n_classes)
 
@@ -733,7 +804,7 @@ for test_set in test_sets:
     for invert in inversions:
         print(f"Testing {model_name} with images from {test_image_path}{' (inverted)' if invert else ''}...", flush=True)
         t0 = time.time()
-        rng = np.random.RandomState(seed=seed)
+        # rng = np.random.RandomState(seed=seed)
 
         # NOTE: Generalisation test images are already in [0, 1] so do not rescale before preprocessing
 #         if test_set in ['scharr']:
@@ -827,10 +898,15 @@ for test_set in test_sets:
             np.savetxt(predictions_file, predictions, delimiter=',', 
                        header=','.join([f'p(class={c})' for c in classes]))
             print(f'Predictions written to: {predictions_file}')
+            del predictions
 
         t_elapsed = time.time() - t0
         print(f"Testing {test_set}{' (inverted)' if invert else ''} images finished! [{t_elapsed:.3f}s]", flush=True)
         print("-" * 80)
+        
+        # Clean up
+        del data_gen
+        gc.collect()
 
     print('Generalisation testing finished!')
 if not len(test_sets):
@@ -847,6 +923,12 @@ if not test_perturbations:
     tf.keras.backend.clear_session()
     sys.exit()
 
+
+ver_num = [int(x, 10) for x in tf.__version__.split('.')]
+if (ver_num[0] >= 2) and (ver_num[1] > 2) and True:
+    print("Setting default dtype to float16")
+    tf.keras.backend.set_floatx('float16')  # Set default dtype to 16 bit
+    
 # Create testing results files
 
 # test_metrics = {mod: [] for mod in models}
@@ -871,7 +953,7 @@ for noise, noise_function, levels in noise_types:
 
         t0 = time.time()
         # t0 = datetime.now()
-        rng = np.random.RandomState(seed=seed+l_ind)
+        rng = np.random.RandomState(seed=seed+l_ind)  # Ensure a new RNG state for each level
 
         # if noise in ["Uniform", "Salt and Pepper"]:  # Stochastic perturbations
         #     perturbation_fn = functools.partial(noise_function, level, 
@@ -902,8 +984,8 @@ for noise, noise_function, levels in noise_types:
 #             print(f"Unknown noise type: {noise}!")
 
 #         prep_image = cifar_wrapper(perturbation_fn)
-        
-        
+
+
         # TODO: Check this is still deterministic when parallelised
         data_gen = ImageDataGenerator(preprocessing_function=prep_image,
                                         featurewise_center=True, 
@@ -968,8 +1050,8 @@ for noise, noise_function, levels in noise_types:
                                             f'{model_name}_{noise.replace(" ", "_").lower()}_L{l_ind+1:02d}.csv')
             np.savetxt(predictions_file, predictions, delimiter=',', 
                        header=','.join([f'p(class={c})' for c in classes]))
+            del predictions
 
-        del gen_test
         row = {'Trial': trial, 'Model': mod, 
                'Convolution': convolution, 'Base': base, 'Weights': weights,
                'Noise': noise, 'Level': level,
@@ -978,7 +1060,15 @@ for noise, noise_function, levels in noise_types:
             writer = csv.DictWriter(results, fieldnames=fieldnames)
             writer.writerow(row)
         # rows.append(row)
+        
+        # Clean up after every perturbation level
+        del prep_image
+        del gen_test
+        del data_gen
+        gc.collect()
+
     print("-" * 80)
+
 
 print(f'Models: {model_output_dir}')
 print(f'Logs: {logs_dir}')  # if args['log']: logdir
