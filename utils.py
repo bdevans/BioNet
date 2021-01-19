@@ -18,7 +18,9 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Lambda, Input, Conv2D  # , Dense
 from tensorflow.keras.initializers import Initializer
+from tensorflow.keras.datasets import cifar10
 from tensorflow.python.framework import dtypes
+from tensorflow.keras.utils import to_categorical
 # from K.tensorflow_backend import set_session
 # from K.tensorflow_backend import clear_session
 # from K.tensorflow_backend import get_session
@@ -28,6 +30,12 @@ from scipy.integrate import simps
 # Needed for load_images
 from tqdm import tqdm
 from matplotlib import pyplot as plt
+
+from GaborNet.config import (luminance_weights, generalisation_sets, classes)
+from GaborNet.preparation import get_perturbations
+# all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
+# generalisation_sets = ['line_drawings', 'silhouettes', 'contours',
+#                        'line_drawings_inverted', 'silhouettes_inverted', 'contours_inverted']
 
 # # Reset Keras Session
 # def reset_keras():
@@ -50,10 +58,147 @@ from matplotlib import pyplot as plt
 #     set_session(tensorflow.Session(config=config))
 
 
+
 def get_simulation_params(sim_set, model_name, models_dir='/work/models'):
     with open(os.path.join(models_dir, sim_set, model_name, 'simulation.json'), 'r') as fh:
         sim = json.load(fh)
     return sim
+
+
+def get_cifar10_images(colour='grayscale', upscale=True, interpolate=True, fresh=False):
+
+    # TODO: Save the processed image arrays to disk and reload if not fresh
+    
+    n_classes = len(classes)
+    interpolation = cv2.INTER_LANCZOS4  # cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC
+
+    # Process stimuli
+    if upscale:
+        image_size = (224, 224)
+        image_shape = image_size + (1,)
+        # image_shape = (224, 224, 1)
+    else:
+        image_size = (32, 32)
+        image_shape = image_size + (1,)
+        # image_shape = (32, 32, 1)
+
+    # Set up stimuli
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()  # RGB format
+    x_train = np.expand_dims(np.dot(x_train, luminance_weights), axis=-1)
+    x_test = np.expand_dims(np.dot(x_test, luminance_weights), axis=-1)
+    y_train = to_categorical(y_train, num_classes=n_classes, dtype='uint8')
+    y_test = to_categorical(y_test, num_classes=n_classes, dtype='uint8')
+
+    if upscale:
+        if interpolate:
+            print(f'Interpolating upscaled images with "{interpolation}"...')
+            x_train_interp = np.zeros(shape=(x_train.shape[0], *image_shape), dtype=np.float16)
+            for i, image in enumerate(x_train):
+                x_train_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
+                                                        interpolation=interpolation)
+            del x_train
+            x_train = x_train_interp
+            x_train[x_train < 0] = 0
+            x_train[x_train > 255] = 255
+
+            x_test_interp = np.zeros(shape=(x_test.shape[0], *image_shape), dtype=np.float16)
+            for i, image in enumerate(x_test):
+                x_test_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
+                                                        interpolation=interpolation)
+            del x_test
+            x_test = x_test_interp        
+            x_test[x_test < 0] = 0
+            x_test[x_test > 255] = 255
+        else:
+            # Equivalent to cv2.INTER_NEAREST (or PIL.Image.NEAREST)
+            x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
+            x_test = x_test.repeat(7, axis=1).repeat(7, axis=2)
+
+    # NOTE: This is later overridden by the ImageDataGenerator which has 'float32' as the default
+    x_train = x_train.astype(np.float16)
+    x_test = x_test.astype(np.float16)
+
+    # TODO: Implement for testing stimuli
+    # if weights == 'imagenet':
+    #     print("Replicating grayscale layer to match expected input size...")
+    #     x_train = x_train.repeat(3, axis=-1)
+    #     x_test = x_test.repeat(3, axis=-1)
+
+    # Summarise stimuli
+    print(f'x_train.shape: {x_train.shape}')
+    print(f'Training: {x_train.shape[0]} in {y_train.shape[1]} categories')
+    print(f'Testing: {x_test.shape[0]} in {y_test.shape[1]} categories')
+
+    if colour == 'grayscale':
+        if (interpolation == cv2.INTER_NEAREST) or not interpolate:
+            mean = 122.61930353949222
+            std = 60.99213660091195
+        elif interpolation == cv2.INTER_LANCZOS4:  # After clipping
+            mean = 122.61385345458984
+            std = 60.87860107421875
+        else:
+            print(f'Uncached interpolation method: {interpolation}')
+            recalculate_statistics = True
+    else:
+        recalculate_statistics = True
+    
+    x_train -= mean
+    x_train /= std
+    x_test -= mean
+    x_test /= std
+
+    return (x_train, y_train), (x_test, y_test)
+
+
+def get_images(image, preprocessing_function=None, image_dir='/work/data'):
+
+    if isinstance(image, np.ndarray):  # Passed image array
+        if preprocessing_function:
+            return preprocessing_function(image)
+        else:
+            return image
+    elif isinstance(image, str):
+        if os.path.isfile(image):  # Passed a file path
+            if preprocessing_function:
+                return preprocessing_function(plt.imread(image))
+            else:
+                return plt.imread(image)
+        if image is None or image == 'all':  # Process generalisation image sets
+            image_sets = generalisation_sets
+        else:
+            assert image in generalisation_sets
+            image_sets = [image]
+
+    images = {}
+
+    for image_set in image_sets:
+        images[image_set] = {}
+        image_set_dir = os.path.join(image_dir, image_set)
+        for c_ind, category in enumerate(sorted(os.listdir(image_set_dir))):
+            images[image_set][category] = []
+            for s_ind, image_file in enumerate(sorted(os.listdir(os.path.join(image_set_dir, category)))):
+
+                full_path = os.path.join(image_set_dir, category, image_file)
+
+                image = plt.imread(full_path) * 255  # Generalisation images are in the range [0, 1]
+
+                if image.shape == (224, 224):
+                    image = image[..., np.newaxis]
+                if image.shape == (224, 224, 3):
+                    image = np.dot(image, luminance_weights)[..., np.newaxis]
+                # image = np.squeeze(prep_image(image))
+                if preprocessing_function:
+                    image = preprocessing_function(image)
+
+                image[image < 0] = 0
+                image[image > 255] = 255
+
+                # image -= mean
+                # image /= std
+
+                images[image_set][category].append(image)
+
+    return images
 
 
 def load_images(path, shuffle=True, verbose=1):
@@ -91,10 +236,131 @@ def load_images(path, shuffle=True, verbose=1):
 
     if not shuffle:
         return image_set, X, y
-    
+
     shuffle = np.random.permutation(y.shape[0])
 
     return image_set, X[shuffle], y[shuffle]
+
+
+def load_predictions(data_set, model_name, verbose=1, results_dir="/work/results"):
+
+    # TODO: Reduce the tolerance in np.isclose -->
+    # generalisation: 100 images: 1e-2; noise: 10000 images: 1e-4 
+    predictions_dir = os.path.join(results_dir, data_set, 'predictions')
+
+    # compiled_stub = f"{model_name.rsplit(sep='_', maxsplit=1)[0]}_Set.csv"
+    model_type, model_run = model_name.rsplit(sep='_', maxsplit=1)
+    model_run = int(model_run)
+    if model_type.endswith("ImageNet"):
+        weights = "imagenet"
+    else:
+        weights = "None"
+
+    # Generalisation image predictions
+    n_classes = len(classes)
+    n_images_per_class = 10
+    y_generalise = np.repeat(range(n_classes), n_images_per_class)
+
+    # Load consolidated accuracy records for checking
+    # records_file = os.path.join(results_dir, "paper", f"generalise_{model_type}_Set.csv")
+    records_file = os.path.join(results_dir, "paper", "generalise_Set.csv")
+    df_records = pd.read_csv(records_file)
+    df_records["Weights"].replace(np.nan, "None", inplace=True)
+
+    frames = []
+    for image_set in generalisation_sets:
+        if image_set.endswith("inverted"):
+            inverted = True
+            image_set_type = image_set.rsplit(sep='_', maxsplit=1)[0]
+        else:
+            inverted = False
+            image_set_type = image_set
+        pred_file = os.path.join(predictions_dir, f"{model_name}_{image_set}.csv")
+        probabilities = np.loadtxt(pred_file, delimiter=',', skiprows=0)
+        classifications = np.argmax(probabilities, axis=1)
+        assert len(classifications) == len(y_generalise)
+        accuracy = sum(classifications == y_generalise) / len(y_generalise)
+        mask = (df_records["Model"] == model_type) & \
+                (df_records["Trial"] == model_run) & \
+                (df_records["Weights"] == weights) & \
+                (df_records["Set"] == image_set_type) & \
+                (df_records["Inverted"] == inverted)
+
+        if verbose > 1:
+            print(f"{model_type=} {model_run=} {weights=} {image_set=} {inverted=}")
+        recorded_accuracy = df_records[mask]["Accuracy"].values[0]
+        if verbose:
+            print(f"{image_set}: {accuracy:3.0%}")
+        df_gen = pd.DataFrame(probabilities, columns=classes)
+        df_gen["Predicted"] = classifications
+        df_gen["Class"] = y_generalise
+        df_gen["Correct"] = classifications == y_generalise
+        df_gen["Image"] = range(n_classes * n_images_per_class)
+        df_gen["Set"] = [image_set_type] * n_classes * n_images_per_class
+        df_gen["Inverted"] = [inverted] * n_classes * n_images_per_class
+        assert np.isclose(accuracy, recorded_accuracy), f"Calculated: {accuracy} =/= Recorded: {recorded_accuracy}"
+        frames.append(df_gen)
+    df_generalise = pd.concat(frames)
+
+    # return df_generalise, df_records
+
+
+    # Noise perturbation image predictions
+    (_, _), (_, y_test) = cifar10.load_data()
+    y_test = np.squeeze(y_test)
+
+    # Check against:
+    perturb_records_file = os.path.join(results_dir, "paper", f"perturb_{model_type}_Set.csv")
+    df_perturb_records = pd.read_csv(perturb_records_file)
+    df_perturb_records["Weights"].replace(np.nan, "None", inplace=True)
+
+    n_levels = 11
+    noise_types = get_perturbations(n_levels=n_levels)
+    frames = []
+    for noise, _, levels in noise_types:
+        if verbose:
+            print(f"{noise}: ", end="")
+        for l_ind, level in enumerate(levels):
+            pred_file = os.path.join(predictions_dir, f'{model_name}_{noise.replace(" ", "_").lower()}_L{l_ind+1:02d}.csv')
+            probabilities = np.loadtxt(pred_file, delimiter=',', skiprows=0)
+            classifications = np.argmax(probabilities, axis=1)
+            assert len(classifications) == len(y_test)
+            accuracy = sum(classifications == y_test) / len(y_test)
+
+            mask = (df_perturb_records["Model"] == model_type) & \
+                    (df_perturb_records["Trial"] == model_run) & \
+                    (df_perturb_records["Weights"] == weights) & \
+                    (df_perturb_records["Noise"] == noise) & \
+                    (np.isclose(df_perturb_records["Level"], level))
+
+            if verbose > 1:
+                print(f"{model_type=} {model_run=} {weights=} {noise=} {level=}")
+            recorded_accuracy = df_perturb_records[mask]["Accuracy"].values[0]
+            # if verbose > 1:
+            #     print(f"Calculated: {accuracy} =/= Recorded: {recorded_accuracy}")
+
+            df_noise = pd.DataFrame(probabilities, columns=classes)
+            df_noise["Predicted"] = classifications
+            df_noise["Class"] = y_test
+            df_noise["Correct"] = classifications == y_test
+            df_noise["Image"] = range(len(y_test))
+            df_noise["Noise"] = [noise] * len(y_test)
+            df_noise["Level"] = [level] * len(y_test)
+            df_noise["Level-Index"] = [l_ind] * len(y_test)
+            assert np.isclose(accuracy, recorded_accuracy), f"Calculated: {accuracy} =/= Recorded: {recorded_accuracy}"
+            # if not np.isclose(accuracy, recorded_accuracy, atol=1e-4, rtol=1e-5):
+            #     print("TODO: Reinstate assertion!")
+            #     print(f"Calculated: {accuracy} =/= Recorded: {recorded_accuracy}")
+            frames.append(df_noise)
+
+            if verbose:
+                print(f"{accuracy:5.1%}", end=" ")
+        if verbose:
+            print()
+
+    df_perturbation = pd.concat(frames)
+
+    return df_generalise, df_perturbation
 
 
 # def upscale_images(images, size, interpolation=None):
@@ -233,7 +499,7 @@ def substitute_layer(model, params, filter_type='gabor', replace_layer=1,
     assert isinstance(replace_layer, int)
     assert 0 < replace_layer < len(model.layers)
 
-    if filter_type.capitalize() == 'Combined':
+    if filter_type.capitalize().startswith('Combined'):
         assert isinstance(params, dict)
         assert len(params) > 1
         configuration = params
@@ -729,7 +995,7 @@ def load_model(data_set, name, verbose=0):
         custom_objects = {'DifferenceOfGaussiansInitializer': DifferenceOfGaussiansInitializer(**filter_params)}
     elif convolution == 'Low-pass':
         custom_objects = {'LowPassInitializer': LowPassInitializer(**filter_params)}
-    elif convolution == 'Combined':
+    elif convolution.startswith('Combined'):
         custom_objects = {'DifferenceOfGaussiansInitializer': DifferenceOfGaussiansInitializer(**filter_params['DoG']),
                           'GaborInitializer': GaborInitializer(**filter_params['Gabor'])}
     else:
@@ -778,7 +1044,7 @@ def load_model(data_set, name, verbose=0):
 
 
 def get_perturbation_results(tag):
-
+    # TODO: Overhaul
     frames = []
     columns = ['Trial', 'Model', 'Convolution', 'Base', 'Weights', 
                'Noise', 'Level', 'Loss', 'Accuracy']
