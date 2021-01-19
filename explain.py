@@ -5,7 +5,7 @@ import warnings
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+# from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import cv2
 from matplotlib import pyplot as plt
 from tf_explain.core.grad_cam import GradCAM
@@ -14,20 +14,13 @@ from GaborNet.preparation import (get_directory_generator,
                                   get_noise_preprocessor, 
                                   invert_luminance)
 from GaborNet.utils import load_model, find_conv_layer
-# from GaborNet.preparation import _CHANNEL_MEANS, _LUMINANCE_MEAN
+from GaborNet.config import (luminance_weights, interpolation,
+                             train_image_stats, 
+                             generalisation_sets, generalisation_types,
+                             image_dir)
 
 
-luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma
-interpolation = cv2.INTER_LANCZOS4
-mean = 122.61385345458984
-std = 60.87860107421875
-train_stats = {
-    'nearest': (122.61930353949222, 60.99213660091195),
-    'lanczos': (122.61385345458984, 60.87860107421875)
-}
-
-image_dir = '/work/data'
-all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
+mean, std = train_image_stats[interpolation]
 
 
 def plot_grad_cam(data_set, model_name, test_set=None, image_weight=0.7, fig_sf=2, save_figure=False):
@@ -43,9 +36,9 @@ def plot_grad_cam(data_set, model_name, test_set=None, image_weight=0.7, fig_sf=
     explainer = GradCAM()
     
     if test_set is None or test_set == 'all':
-        test_sets = all_test_sets
+        test_sets = generalisation_types
     else:
-        assert test_set in all_test_sets
+        assert test_set in generalisation_types
         test_sets = [test_set]
     
     for test_set in test_sets:
@@ -92,12 +85,12 @@ def plot_grad_cam(data_set, model_name, test_set=None, image_weight=0.7, fig_sf=
                     axes[c_ind, s_ind].set_axis_off()
 
                     if s_ind == 0:
-                        axes[s_ind, c_ind].set_ylabel(category.capitalize())
+                        axes[c_ind, s_ind].set_ylabel(category.capitalize())
                     i += 1
 
             fig.subplots_adjust(0.02,0.02,0.98,0.98)
             if save_figure:
-                fig_output_dir = f'/work/results/{label}/{model_name}/grad_cam/'
+                fig_output_dir = f'/work/results/{data_set}/{model_name}/grad_cam/'
                 os.makedirs(fig_output_dir, exist_ok=True)
                 output = f'{fig_output_dir}/{test_set}{"_invert" if invert_test_images else ""}.png'
                 fig.savefig(output)
@@ -140,6 +133,7 @@ def get_activations(image_path, data_set, model_name, layer_id=None, verbose=0):
     else:
         print(f"Error! Unknown layer type: {layer_id} ({type(layer_id)})")
 
+    # if verbose:
     print(f"Getting activations of layer {layer_name} from {data_set}/{model_name}...")
 
 # #     layers_name = [layer_name.lower()]
@@ -172,6 +166,7 @@ def get_activations(image_path, data_set, model_name, layer_id=None, verbose=0):
         if os.path.isfile(image_path):
             # Image to pass as input
             # TODO: replace with the same routines as used elsewhere
+            # TODO: Alternatively check if interpolation is used if the image is already the target size
             img = tf.keras.preprocessing.image.load_img(image_path, target_size=input_shape[1:-1], #(224, 224), 
                                                         color_mode="grayscale", interpolation="lanczos")
             img = tf.keras.preprocessing.image.img_to_array(img)
@@ -184,6 +179,9 @@ def get_activations(image_path, data_set, model_name, layer_id=None, verbose=0):
 
             img -= mean
             img /= std
+
+            # plt.imshow(img)
+            # plt.colorbar()
 
             activations[image_path] = activations_model.predict(np.array([img]))
         elif os.path.isdir(image_path):
@@ -239,11 +237,7 @@ def plot_activations(image_path, data_set, model_name, layer_name=None, fig_sf=2
     return (fig, axes)
 
 
-def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, patch_size=8, ax=None, verbose=0):
-    
-    fig = None
-    if ax is None:
-        fig, ax = plt.subplots()  # figsize=figsize)
+def get_occlusion_map(model, image, class_index, patch_size=8):
 
     # Create function to apply a grey patch on an image
     def apply_grey_patch(image, top_left_x, top_left_y, patch_size):
@@ -252,26 +246,25 @@ def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, pa
 
         return patched_image
     
-    print(f"Plotting occlusion sensitivity for {data_set}/{model_name} on {image_path}...")
-    model = load_model(data_set, model_name, verbose=verbose)
     # Model to examine
     # model = tf.keras.applications.resnet50.ResNet50(weights='imagenet', include_top=True)
     input_shape = model.input.get_shape().as_list()
 
-    # Image to pass as input
-    # TODO: replace with the same routines as used elsewhere
-    img = tf.keras.preprocessing.image.load_img(image_path, target_size=input_shape[1:-1], #(224, 224), 
-                                                color_mode="grayscale", interpolation="lanczos")
-    img = tf.keras.preprocessing.image.img_to_array(img) # * 255
+    # # Image to pass as input
+    # # TODO: replace with the same routines as used elsewhere
+    # img = tf.keras.preprocessing.image.load_img(image, target_size=input_shape[1:-1], #(224, 224), 
+    #                                             color_mode="grayscale", interpolation="lanczos")
+    # img = tf.keras.preprocessing.image.img_to_array(img) # * 255
 
-    # print(np.amin(img), np.amax(img), flush=True)
-    # img = np.expand_dims(np.dot(img, luminance_weights), axis=-1)
-    # cv2.resize(image, dsize=image_size, interpolation=interpolation)
-    img[img < 0] = 0
-    img[img > 255] = 255
+    # # print(np.amin(img), np.amax(img), flush=True)
+    # # img = np.expand_dims(np.dot(img, luminance_weights), axis=-1)
+    # # cv2.resize(image, dsize=image_size, interpolation=interpolation)
+    # img[img < 0] = 0
+    # img[img > 255] = 255
 
-    img -= mean
-    img /= std
+    # img -= mean
+    # img /= std
+    img = image
 
 
     # CAT_CLASS_INDEX = 5 #281  # Imagenet tabby cat class index
@@ -291,12 +284,83 @@ def plot_occlusion_sensitivity(data_set, model_name, image_path, class_index, pa
                 top_left_y:top_left_y + PATCH_SIZE,
                 top_left_x:top_left_x + PATCH_SIZE,
             ] = confidence
+    
+    return sensitivity_map
 
+
+def plot_occlusion_sensitivity(data_set, model_name, image, class_index, patch_size=8, ax=None, verbose=0):
+
+    fig = None
+    if ax is None:
+        fig, ax = plt.subplots()  # figsize=figsize)
+
+    print(f"Plotting occlusion sensitivity for {data_set}/{model_name}...")
+    model = load_model(data_set, model_name, verbose=verbose)
+
+    sensitivity_map = get_occlusion_map(model, image, class_index, patch_size=8)
 
     cmap = ax.imshow(sensitivity_map) #, vmin=0.5, vmax=1)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.set_axis_off()
     # plt.colorbar()
 
     return cmap #(fig, axes)
+
+
+def get_most_activating_features(model, layer_index, channel_index, epochs=100, step_size=1., seed=None):
+
+    # Set the RNG seed for reproducibility
+    if seed is None:
+        seed = np.random.randint(np.iinfo(np.int32).max)
+    assert 0 <= seed < np.iinfo(np.int32).max
+    np.random.seed(seed)
+
+    if layer_index >= 0:
+        pass  # Create submodel
+    else:
+        pass  # Skip creating submodel
+    # Create submodel
+    layer = model.get_layer(index=layer_index)
+    # assert 0 <= channel_index < layer.output.shape[-1]
+    submodel = tf.keras.models.Model([model.inputs[0]], [layer.output])
+
+    # out_dir = os.path.join(results_dir, data_set, 'activating_features')
+    # os.makedirs(out_dir, exist_ok=True)
+
+    # maf_filename = os.path.join(out_dir, f'{model_name}_L{layer_index}_C{filter_index}.npy')
+    # if os.path.isfile(maf_filename) and not fresh:
+    #     feature_map = np.load(maf_filename)
+
+    # else:
+
+
+    # Initiate random noise
+    input_img_data = np.random.random((1, 224, 224, 1))
+    input_img_data = (input_img_data - 0.5) * 20 #+ 128.
+    # Cast random noise from np.float64 to tf.float32 Variable
+    input_img_data = tf.Variable(tf.cast(input_img_data, tf.float32))
+
+    # Iterate gradient ascents
+    for _ in range(epochs):
+        with tf.GradientTape() as tape:
+            outputs = submodel(input_img_data)
+            # loss_value = tf.reduce_mean(outputs[:, :, :, channel_index])
+            loss_value = tf.reduce_mean(outputs[..., channel_index])
+        grads = tape.gradient(loss_value, input_img_data)
+        normalized_grads = grads / (tf.sqrt(tf.reduce_mean(tf.square(grads))) + 1e-5)
+        input_img_data.assign_add(normalized_grads * step_size)
+    feature_map = np.squeeze(input_img_data.numpy())
+
+
+        # with open(maf_filename, 'wb') as maf:
+        #     np.save(maf, feature_map)
+
+    
+    del submodel
+    return feature_map
 
 
 def plot_most_activating_features(data_set, model_name, layer=None, filter_index=None,
@@ -385,7 +449,7 @@ def plot_most_activating_features(data_set, model_name, layer=None, filter_index
     os.makedirs(out_dir, exist_ok=True)
 
     for ax, filter_index in zip(axes.ravel(), filter_indices):
-        
+
         maf_filename = os.path.join(out_dir, f'{model_name}_L{layer_index}_C{filter_index}.npy')
         if os.path.isfile(maf_filename) and not fresh:
             feature_map = np.load(maf_filename)
