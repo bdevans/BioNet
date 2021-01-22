@@ -14,26 +14,33 @@ import gc
 
 import numpy as np
 import cv2
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# import seaborn as sns
+import pandas as pd
 import tensorflow as tf
 import tensorflow.keras
 import tensorflow.keras.backend
-from tensorflow.keras.metrics import categorical_crossentropy, top_k_categorical_accuracy
+from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.preprocessing.image import ImageDataGenerator  #, load_img, img_to_array
 # from tensorflow.keras.applications.vgg19 import preprocess_input, decode_predictions
 from tensorflow.keras.applications import vgg16, vgg19, resnet_v2
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.metrics import (categorical_crossentropy, 
+                                      categorical_accuracy, 
+                                      top_k_categorical_accuracy)
 
 # sys.path.append('/work/generalisation-humans-DNNs/code')
 # sys.path.append('/work/generalisation-humans-DNNs/code/accuracy_evaluation/')
 # sys.path.append('/work/code/keras_lr_finder/')
 # from mappings import HumanCategories
+from GaborNet.config import (data_set, classes, n_classes, luminance_weights, 
+                             colour, contrast_level,
+                             upscale, image_size, image_shape, train_image_stats,
+                             data_dir, models_dir, logs_dir, results_dir,
+                             generalisation_types,
+                             max_queue_size, workers, use_multiprocessing,
+                             report, extension)
 from GaborNet import utils, plots
 from GaborNet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_fn, 
-                                  get_perturbations,
+                                  get_perturbations, stochastic_perturbations,
                                   cifar_wrapper, get_noise_preprocessor, 
                                   sanity_check,
                                   uniform_noise, salt_and_pepper_noise, 
@@ -53,7 +60,6 @@ from all_cnn.networks import allcnn, allcnn_imagenet
 # However, when training on a GPU, the cuDNN stack introduces sources of "randomness" since the order of execution is not always guaranteed when running operations in parallel.
 # Currently, there is no such attempt to make the results reproducible - only to ensure that each run is sufficiently different when testing with noise. 
 
-
 # pprint.pprint(sys.path)
 print('+' * 80)  # Simulation metadata
 print(f'[{datetime.now().strftime("%Y/%m/%d %H:%M:%S")}] Starting simulation...')
@@ -61,7 +67,6 @@ print("\nTensorFlow:", tf.__version__)
 print(f"Channel ordering: {tf.keras.backend.image_data_format()}")  # TensorFlow: Channels last order.
 gpus = tf.config.experimental.list_physical_devices('GPU')
 pprint.pprint(gpus)
-
 
 # dtype = 'float16'  # Theoretically, not supported on Titan Xp
 # tf.keras.backend.set_floatx(dtype)
@@ -77,10 +82,6 @@ warnings.filterwarnings("ignore", "tensorflow:Model failed to serialize as JSON.
 
 # Instantiate the parser
 parser = argparse.ArgumentParser()
-
-# TODO: Check if abbreviations only work for flags
-# parser.add_argument('--model', type=str, default='GaborNet',
-#                     help='Name of model to use')
 parser.add_argument('--convolution', type=str, default='Original',
                     help='Name of convolutional filter to use')
 parser.add_argument('--base', type=str, default='VGG16',
@@ -89,10 +90,12 @@ parser.add_argument('--pretrain', action='store_true', # type=bool, default=Fals
                     help='Flag to use ImageNet weights the model')
 parser.add_argument('--architecture', type=str, default='model.json',
                     help='Parameter file (JSON) to load')
-parser.add_argument('--upscale', action='store_true', #default=False, required=False,
-                    help='Flag to upscale the CIFAR10 images')
-parser.add_argument('--interpolate', action='store_true', default=False, required=False,
-                    help='Flag to interpolate the images when upscaling')
+# parser.add_argument('--upscale', action='store_true', #default=False, required=False,
+#                     help='Flag to upscale the CIFAR10 images')
+# parser.add_argument('--interpolate', action='store_true', default=False, required=False,
+#                     help='Flag to interpolate the images when upscaling')
+parser.add_argument('--interpolation', type=int, default=0,
+                    help='Method to interpolate the images when upscaling. Default: 0 ("nearest" i.e. no interpolation)')
 parser.add_argument('--optimizer', type=str, default='RMSprop',
                     choices=['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam'],
                     help='Name of optimizer to use: https://keras.io/optimizers/')
@@ -117,12 +120,12 @@ parser.add_argument('-t', '--train', action='store_true', # type=bool, default=F
 # This accompanying unfinished code was deleted in a single commit 25/6/20
 # parser.add_argument('--train_with_noise', action='store_true',
 #                     help='Flag to train the model with noise-like masks')
-parser.add_argument('--recalculate_statistics', action='store_true',
+parser.add_argument('--recalculate_statistics', action='store_true', required=False,
                     help='Flag to recalculate normalisation statistics over the training set')
 parser.add_argument('--epochs', type=int, default=20, required=False,
                     help='Number of epochs to train model')
 parser.add_argument("--batch", type=int, default=64,
-	                help="Size of mini-batches passed to the network")
+                    help="Size of mini-batches passed to the network")
 parser.add_argument('--image_path', type=str, default='',
                     help='Path to image files to load')
 parser.add_argument('--train_image_path', type=str, default='',
@@ -151,6 +154,8 @@ parser.add_argument('-p', '--save_predictions', action='store_true', default=Fal
                     help='Flag to save category predictions')
 parser.add_argument('--gpu', type=int, default=0, required=False,
                     help='GPU ID to run on')
+parser.add_argument('-v', '--verbose', type=int, default=0, required=False,
+                    help='Verbosity level')
 
 args = vars(parser.parse_args())  # vars() returns a dict
 
@@ -160,8 +165,9 @@ tf.config.experimental.set_visible_devices(gpus[args["gpu"]], 'GPU')
 
 convolution = args['convolution']
 base = args['base']
-upscale = args['upscale']
-interpolate = args['interpolate']
+# upscale = args['upscale']
+# interpolate = args['interpolate']
+interpolation = args['interpolation']
 train = args['train']
 clean = args['clean']
 epochs = args['epochs']
@@ -185,25 +191,25 @@ skip_test = args['skip_test']
 save_images = args['save_images']
 save_predictions = args['save_predictions']
 seed = args['seed']  # 420420420
-# mod = args["model"]
-base = args['base']
 trial = args['trial']
 label = args['label']
+verbose = args['verbose']
+
 assert 0 < trial
 
 # Stimuli metadata
-luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma transform)
-data_set = 'CIFAR10'
-n_classes = 10
-classes = ('airplane', 'automobile', 'bird', 'cat', 'deer', 
-           'dog', 'frog', 'horse', 'ship', 'truck')
+# luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma transform)
+# data_set = 'CIFAR10'
+# n_classes = 10
+# classes = ('airplane', 'automobile', 'bird', 'cat', 'deer', 
+#            'dog', 'frog', 'horse', 'ship', 'truck')
 # CIFAR10 image statistics calculated across the training set (after converting to greyscale)
 # mean = 122.61930353949222
 # std = 60.99213660091195
-colour = 'grayscale'  # 'rgb'
-contrast_level = 1  # Proportion of original contrast level for uniform and salt and pepper noise
+# colour = 'grayscale'  # 'rgb'
+# contrast_level = 1  # Proportion of original contrast level for uniform and salt and pepper noise
 
-weights = None
+weights = None  # Default unless pretrain flag is set
 
 if convolution.capitalize() == 'Gabor':
     # Gabor parameters
@@ -226,7 +232,7 @@ elif convolution == 'DoG':
               'gammas': [1.6, 1.8, 2, 2.2]
              }
     mod = f'DoG_{base}'
-elif convolution.capitalize() == 'Combined':
+elif convolution.capitalize() == 'Combined-full':
     params = {
         'DoG': {
             'ksize': (63, 63),
@@ -296,7 +302,8 @@ elif convolution.capitalize() == 'Combined-trim':
             'psis': [np.pi/2, 3*np.pi/2]
             },
         }
-    mod = f"{'+'.join(list(params))}_{base}"
+    # mod = f"{'+'.join(list(params))}_{base}"
+    mod = f"Combined_{base}"
 elif convolution.capitalize() == 'Low-pass':
     params = {'ksize': (63, 63),
 #               'sigmas': [8]
@@ -307,10 +314,11 @@ elif convolution.capitalize() == 'Low-pass':
     mod = f'Low-pass_{base}'
 elif convolution.capitalize() == 'Original':
     params = None
-    mod = base
+#     mod = base
+    mod = f"Original_{base}"
     if args['pretrain']:
         weights = 'imagenet'
-        mod = f'{base}_ImageNet'
+        mod = f'{mod}_ImageNet'
 else:
     warnings.warn(f'Unknown convolution type: {convolution}!')
     sys.exit()
@@ -318,22 +326,22 @@ else:
 filter_params = params
 
 
-max_queue_size = 10
-workers = 12  # 4
-use_multiprocessing = False
-verbose = False
-report = 'batch'  # 'epoch'
+# max_queue_size = 10
+# workers = 12  # 4
+# use_multiprocessing = False
+# verbose = False
+# report = 'batch'  # 'epoch'
 # use_initializer = False
-extension = 'h5'  # For saving model/weights
+# extension = 'h5'  # For saving model/weights
 
-data_dir = '/work/data'
-# Output paths
-models_dir = '/work/models'
-logs_dir = '/work/logs'
-results_dir = '/work/results'
+# data_dir = '/work/data'
+# # Output paths
+# models_dir = '/work/models'
+# logs_dir = '/work/logs'
+# results_dir = '/work/results'
 os.makedirs(models_dir, exist_ok=True)
-save_to_dir = os.path.join('/work/results/', label)  # label ignored if empty
-os.makedirs(save_to_dir, exist_ok=True)
+save_to_dir = os.path.join(results_dir, label)  # label ignored if empty
+os.makedirs(os.path.join(save_to_dir, "metrics"), exist_ok=True)
 
 if save_predictions:
     os.makedirs(os.path.join(save_to_dir, 'predictions'), exist_ok=True)
@@ -364,17 +372,17 @@ noise_types = get_perturbations(n_levels=n_levels)
 #                ("Rotation", rotate_image, np.array([0, 90, 180, 270], dtype=int)),
 #                ('Invert', invert_luminance, np.array([0, 1], dtype=int))]
 
-# Process stimuli
-if upscale:
-    image_size = (224, 224)
-    image_shape = image_size + (1,)
-    # image_shape = (224, 224, 1)
-else:
-    image_size = (32, 32)
-    image_shape = image_size + (1,)
-    # image_shape = (32, 32, 1)
+# # Process stimuli
+# if upscale:
+#     image_size = (224, 224)
+#     image_shape = image_size + (1,)
+#     # image_shape = (224, 224, 1)
+# else:
+#     image_size = (32, 32)
+#     image_shape = image_size + (1,)
+#     # image_shape = (32, 32, 1)
 
-interpolation = cv2.INTER_LANCZOS4  # cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC
+# interpolation = cv2.INTER_LANCZOS4  # cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC
 
 if image_path and os.path.isdir(image_path):
     load_images_from_disk = True
@@ -398,12 +406,12 @@ y_test = to_categorical(y_test, num_classes=n_classes, dtype='uint8')
 
 # print('-' * 80)
 if upscale:
-    if interpolate:
+    if interpolation:  #interpolate:
         print(f'Interpolating upscaled images with "{interpolation}"...')
         x_train_interp = np.zeros(shape=(x_train.shape[0], *image_shape), dtype=np.float16)
         for i, image in enumerate(x_train):
             x_train_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
-                                                    interpolation=interpolation)
+                                                interpolation=interpolation)
         del x_train
         x_train = x_train_interp
         x_train[x_train < 0] = 0
@@ -412,12 +420,12 @@ if upscale:
         x_test_interp = np.zeros(shape=(x_test.shape[0], *image_shape), dtype=np.float16)
         for i, image in enumerate(x_test):
             x_test_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
-                                                    interpolation=interpolation)
+                                                interpolation=interpolation)
         del x_test
         x_test = x_test_interp        
         x_test[x_test < 0] = 0
         x_test[x_test > 255] = 255
-    else:
+    else:  # Redundant as this is equivalent to interpolation == 0
         # Equivalent to cv2.INTER_NEAREST (or PIL.Image.NEAREST)
         x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
         x_test = x_test.repeat(7, axis=1).repeat(7, axis=2)
@@ -438,16 +446,18 @@ print(f'Training: {x_train.shape[0]} in {y_train.shape[1]} categories')
 print(f'Testing: {x_test.shape[0]} in {y_test.shape[1]} categories')
 
 if data_set == 'CIFAR10' and colour == 'grayscale':
-    if (interpolation == cv2.INTER_NEAREST) or not interpolate:
-        mean = 122.61930353949222
-        std = 60.99213660091195
-    elif interpolation == cv2.INTER_LANCZOS4:
-        # Without clipping
-        # mean = 122.6172103881836
-        # std = 60.89457321166992
-        # After clipping
-        mean = 122.61385345458984
-        std = 60.87860107421875
+    if interpolation in train_image_stats:
+        mean, std = train_image_stats[interpolation]
+#     if (interpolation == cv2.INTER_NEAREST) or not interpolate:
+#         mean = 122.61930353949222
+#         std = 60.99213660091195
+#     elif interpolation == cv2.INTER_LANCZOS4:
+#         # Without clipping
+#         # mean = 122.6172103881836
+#         # std = 60.89457321166992
+#         # After clipping
+#         mean = 122.61385345458984
+#         std = 60.87860107421875
     else:
         print(f'Uncached interpolation method: {interpolation}')
         recalculate_statistics = True
@@ -463,6 +473,7 @@ if recalculate_statistics:  # or interpolate:
 print(f'Training statistics: mean={mean}; std={std}')
 
 # Save metadata
+# TODO: Simplify by using the args dictionary
 sim = {
     'data_set': data_set,
     'n_classes': n_classes,
@@ -486,7 +497,7 @@ sim = {
     'image_std': std,
     'image_shape': image_shape,
     'upscale': upscale,
-    'interpolate': interpolate,
+#     'interpolate': interpolate,
     'interpolation': interpolation,
     'recalculate_statistics': recalculate_statistics,
     'colour': colour,
@@ -511,7 +522,7 @@ model_name = f'{mod}_{trial}'
 #     sim_set = f"{mod}_t{trial}_e{epochs}_s{seed}"
 sim_set = f"{model_name}_s{seed}"
 sim_file = f"{sim_set}.json"
-with open(os.path.join(save_to_dir, sim_file), "w") as sf:
+with open(os.path.join(save_to_dir, sim_file), "w") as sf:  # "metrics"
     json.dump(sim, sf, indent=4)
 
 if save_images:
@@ -719,7 +730,7 @@ else:
         #                               max_queue_size=max_queue_size,
         #                               use_multiprocessing=use_multiprocessing,
         #                               workers=workers)
-        
+
         # if resume_training:
         #     initial_epoch = ...
         # else:
@@ -762,25 +773,31 @@ if skip_test:
     print("=" * 80)
     sys.exit()
 
+# batch = 100  # Differences in metrics may be due to rounding effects
 
-all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
+
+# Test Generalisation Images
+# all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
 
 if isinstance(test_generalisation, str):
     if test_generalisation.lower() == 'all':
-        test_sets = all_test_sets
-    elif test_generalisation.lower() in all_test_sets:
+        test_sets = generalisation_types
+    elif test_generalisation.lower() in generalisation_types:
         test_sets = [test_generalisation.lower()]
     else:
         warnings.warn(f'Unknown generalisation test set: {test_generalisation}!')
         test_sets = []
 elif isinstance(test_generalisation, bool):
     if test_generalisation:
-        test_sets = all_test_sets
+        test_sets = generalisation_types
     else:
         test_sets = []
 else:
     warnings.warn(f'Unknown generalisation test set type: {test_generalisation} ({type(test_generalisation)})!')
     test_sets = []
+
+# if save_predictions:
+#     frames = []
 
 if test_generalisation:
     if invert_test_images:
@@ -789,9 +806,9 @@ if test_generalisation:
     else:
         inversions = [False]
 
-    fieldnames = ['Trial', 'Model', 'Convolution', 'Base', 'Weights',
-                  'Set', 'Inverted', 'Loss', 'Accuracy']
-    results_file = os.path.join(save_to_dir, f"generalise_{sim_set}.csv")
+    fieldnames = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
+                  'Set', 'Type', 'Inverted', 'Loss', 'Accuracy']
+    results_file = os.path.join(save_to_dir, "metrics", f"{model_name}_generalise_s{seed}.csv")  # f"generalise_{sim_set}.csv")
     with open(results_file, 'w') as results:
         writer = csv.DictWriter(results, fieldnames=fieldnames)
         writer.writeheader()
@@ -806,6 +823,7 @@ for test_set in test_sets:
         t0 = time.time()
         # rng = np.random.RandomState(seed=seed)
 
+        full_set_name = f"{test_set}{'_inverted' if invert else ''}"
         # NOTE: Generalisation test images are already in [0, 1] so do not rescale before preprocessing
 #         if test_set in ['scharr']:
 #             rescale = 1/255
@@ -842,12 +860,10 @@ for test_set in test_sets:
 #             data_gen.std = std
         data_gen.mean = mean
         data_gen.std = std
-        
+
         if save_images:
-            # image_prefix = f"{noise.replace(' ', '_').lower()}"
-            generalisation_dir = os.path.join(image_out_dir, f"{test_set}{'_inverted' if invert else ''}")
+            generalisation_dir = os.path.join(image_out_dir, full_set_name)
             os.makedirs(generalisation_dir, exist_ok=True)
-            # generalisation_prefix = f"L{l_ind+1:02d}"
             generalisation_prefix = ''
         else:
             generalisation_dir = None
@@ -863,19 +879,12 @@ for test_set in test_sets:
                                                 save_prefix=generalisation_prefix)
 
         metrics = model.evaluate(gen_test, 
-                                 # steps=gen_test.n//batch,
                                  steps=len(gen_test),
                                  verbose=1,
                                  max_queue_size=max_queue_size,
                                  workers=workers,
                                  use_multiprocessing=use_multiprocessing)
 
-        row = {'Trial': trial, 'Model': mod, 'Convolution': convolution, 'Base': base, 'Weights': weights,
-               'Set': test_set, 'Inverted': invert,  # os.path.basename(test_image_path),
-               'Loss': metrics[0], 'Accuracy': metrics[1]}
-        with open(results_file, 'a') as results:
-            writer = csv.DictWriter(results, fieldnames=fieldnames)
-            writer.writerow(row)
 
         if train:
             metrics_dict = {metric: score for metric, score in zip(model.metrics_names, metrics)}
@@ -883,7 +892,17 @@ for test_set in test_sets:
         else:
             print(f"Evaluation results: {metrics}")
 
-        if save_predictions:
+        if save_predictions:  # Get classification probabilities
+            # Reinitialise iterator
+            gen_test = data_gen.flow_from_directory(test_image_path,
+                                        target_size=image_size,
+                                        color_mode=colour,
+                                        batch_size=batch,
+                                        shuffle=False, seed=seed,
+                                        interpolation=interpolation,
+                                        save_to_dir=generalisation_dir, 
+                                        save_prefix=generalisation_prefix)
+
             predictions = model.predict(gen_test, 
                                         verbose=1,
                                         # steps=gen_test.n//batch,  # BAD: This skips the remainder of images
@@ -892,18 +911,64 @@ for test_set in test_sets:
                                         workers=workers,
                                         use_multiprocessing=use_multiprocessing)
             # print(predictions.shape)  # (n_images, n_classes)
-            file_name = f"{model_name}_{test_set}{'_inverted' if invert else ''}.csv"
+            file_name = f"{model_name}_generalise_{full_set_name}_s{seed}.csv"
             predictions_file = os.path.join(save_to_dir, 'predictions', file_name)
-            # header = [f'p(class={c})' for c in classes]  # range(n_classes)]
-            np.savetxt(predictions_file, predictions, delimiter=',', 
-                       header=','.join([f'p(class={c})' for c in classes]))
-            print(f'Predictions written to: {predictions_file}')
+
+#             np.savetxt(predictions_file, predictions, delimiter=',', 
+#                        header=','.join([f'p(class={c})' for c in classes]))
+
+            n_images_per_class = 10
+            n_images = n_images_per_class * n_classes
+            y_generalise = np.repeat(range(n_classes), n_images_per_class)
+            classifications = np.argmax(predictions, axis=1)
+
+#             loss = categorical_crossentropy(to_categorical(y_generalise, num_classes=n_classes, dtype='uint8'), predictions)
+#             loss = np.sum(loss.numpy())
+#             assert np.isclose(loss, metrics[0]), f"Loss: Calculated: {loss} =/= Recorded: {metrics[0]}"
+            # Check accuracy based on probabilities matches accuracy from .evaluate
+            assert len(classifications) == len(y_generalise)
+            accuracy = sum(classifications == y_generalise) / len(y_generalise)
+#             cat_acc = categorical_accuracy(y_generalise, classifications).numpy()
+#             assert np.isclose(accuracy, cat_acc), f"Calculated: {accuracy} =/= Library: {cat_acc}"
+            assert np.isclose(accuracy, metrics[1], atol=0.001), f"Calculated: {accuracy} =/= Evaluated: {metrics[1]}"
+#             if not np.isclose(accuracy, metrics[1], atol=0.001):  # 1/(2*n_images)
+#                 print(f"Calculated: {accuracy} =/= Evaluated: {metrics[1]}")
+
+            # Put predictions into DataFrame
+            df_gen = pd.DataFrame(predictions, columns=classes)
+            df_gen["Predicted"] = classifications
+            df_gen["Class"] = y_generalise
+            df_gen["Correct"] = classifications == y_generalise
+            df_gen["Image"] = range(n_images)
+            df_gen["Set"] = [full_set_name] * n_images
+            df_gen["Type"] = [test_set] * n_images
+            df_gen["Inverted"] = [invert] * n_images
+
+#             frames.append(df_gen)
+            df_gen.to_csv(predictions_file, index=False)
+
+            if verbose:
+                print(f'Predictions written to: {predictions_file}')
             del predictions
+
+        if save_predictions:
+            # Manual calculation is more accurate, probably due to rounding errors
+            # However, the results are the same for dtype=float16 rounded to 7 d.p.
+            acc = accuracy
+        else:
+            acc = metrics[1]
+        row = {'Model': mod, 'Convolution': convolution, 'Base': base,
+               'Weights': str(weights), 'Trial': trial, 'Seed': seed,
+               'Set': full_set_name, 'Type': test_set, 'Inverted': invert,
+               'Loss': metrics[0], 'Accuracy': acc}
+        with open(results_file, 'a') as results:
+            writer = csv.DictWriter(results, fieldnames=fieldnames)
+            writer.writerow(row)
 
         t_elapsed = time.time() - t0
         print(f"Testing {test_set}{' (inverted)' if invert else ''} images finished! [{t_elapsed:.3f}s]", flush=True)
         print("-" * 80)
-        
+
         # Clean up
         del data_gen
         gc.collect()
@@ -928,7 +993,9 @@ ver_num = [int(x, 10) for x in tf.__version__.split('.')]
 if (ver_num[0] >= 2) and (ver_num[1] > 2) and True:
     print("Setting default dtype to float16")
     tf.keras.backend.set_floatx('float16')  # Set default dtype to 16 bit
-    
+
+# Test perturbation images
+
 # Create testing results files
 
 # test_metrics = {mod: [] for mod in models}
@@ -937,9 +1004,10 @@ if (ver_num[0] >= 2) and (ver_num[1] > 2) and True:
 #     # test_predictions = {mod: [] for mod in models}
 # rows = []
 
-fieldnames = ['Trial', 'Model', 'Convolution', 'Base', 'Weights',
-              'Noise', 'Level', 'Loss', 'Accuracy']
-results_file = os.path.join(save_to_dir, f"perturb_{sim_set}.csv")
+fieldnames = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
+              'Noise', 'LI', 'Level', 'Loss', 'Accuracy']
+y_labels = np.squeeze(np.argmax(y_test, axis=1))
+results_file = os.path.join(save_to_dir, "metrics", f"{model_name}_perturb_s{seed}.csv") #f"perturb_{sim_set}.csv") #sim_set = f"{model_name}_s{seed}"
 with open(results_file, 'w') as results:
     writer = csv.DictWriter(results, fieldnames=fieldnames)
     writer.writeheader()
@@ -948,6 +1016,14 @@ with open(results_file, 'w') as results:
 for noise, noise_function, levels in noise_types:
     print(f"[{model_name}] Perturbing test images with {noise} noise...")
     print("-" * 80)
+    
+    if noise in stochastic_perturbations:
+        # Set the number of workers to 1 for reproducility as this avoids 
+        # ordering effects when getting batches with stochastic perturbations
+        perturbation_workers = 1
+    else:
+        perturbation_workers = workers
+    
     for l_ind, level in enumerate(levels):
         print(f"[{l_ind+1:02d}/{len(levels):02d}] level={float(level):6.2f}: ", end='', flush=True)
 
@@ -999,7 +1075,7 @@ for noise, noise_function, levels in noise_types:
             # image_prefix = f"{noise.replace(' ', '_').lower()}"
             test_image_dir = os.path.join(image_out_dir, noise.replace(' ', '_').lower())
             os.makedirs(test_image_dir, exist_ok=True)
-            image_prefix = f"L{l_ind+1:02d}"
+            image_prefix = f"L{l_ind:02d}"
         else:
             test_image_dir = None
 
@@ -1007,17 +1083,13 @@ for noise, noise_function, levels in noise_types:
                                  shuffle=False, seed=seed,  # True
                                  save_to_dir=test_image_dir, save_prefix=image_prefix)
 
-#         metrics = model.evaluate_generator(gen_test, #steps=gen_test.n//batch,
-#                                            max_queue_size=max_queue_size,
-#                                            use_multiprocessing=use_multiprocessing,
-#                                            workers=workers)
         # This new method has a memory leak
         metrics = model.evaluate(gen_test, 
                                  # steps=gen_test.n//batch,
                                  steps=len(gen_test),
                                  verbose=0,
                                  max_queue_size=max_queue_size,
-                                 workers=workers,
+                                 workers=perturbation_workers,
                                  use_multiprocessing=use_multiprocessing)
         # print(model.metrics_names)
         # print(f"{mod} metrics: {metrics}")
@@ -1029,38 +1101,85 @@ for noise, noise_function, levels in noise_types:
         else:
             print(f"{metrics} [{t_elapsed:.3f}s]")
 
-        # test_metrics[mod].append(metrics)
 
         if save_predictions:
-            # predictions = model.predict_generator(gen_test, steps=gen_test.n//batch)
+
+            # NOTE: The results from randomised perturbations do not match 
+            # those calculated from the predictions because .evaluate and
+            # .predict appear to use generators differently
+            # Precise values for Uniform, Salt & Pepper and Phase scrambling
+            # are unreproducible. This is likely due to using multiple workers
+            # with the ImageDataGenerator. 
+
+            # TODO: Check they are reproducible across runs
+            # TODO: Alternatively, generate the same mask for each image
+            rng = np.random.RandomState(seed=seed+l_ind)
+            prep_image = get_noise_preprocessor(noise, noise_function, level,
+                                                contrast_level=contrast_level,
+                                                bg_grey=mean/255, rng=rng)
+            data_gen = ImageDataGenerator(preprocessing_function=prep_image,
+                                          featurewise_center=True, 
+                                          featurewise_std_normalization=True,
+                                          dtype='float16')
+            data_gen.mean = mean
+            data_gen.std = std
+            gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
+                                     shuffle=False, seed=seed, save_to_dir=None)
+
             predictions = model.predict(gen_test, 
                                         verbose=0,
                                         # steps=gen_test.n//batch,
                                         steps=len(gen_test),
                                         max_queue_size=max_queue_size,
-                                        workers=workers,
+                                        workers=perturbation_workers,
                                         use_multiprocessing=use_multiprocessing)
-            # test_predictions.append(predictions)
-            # print(predictions.shape)
-            # test_predictions[mod].append(predictions)
-            # TODO
-            # with open(predictions_file, 'a') as pred_file:
-            #     pred_writer = csv.
+
             predictions_file = os.path.join(save_to_dir, 'predictions', 
-                                            f'{model_name}_{noise.replace(" ", "_").lower()}_L{l_ind+1:02d}.csv')
-            np.savetxt(predictions_file, predictions, delimiter=',', 
-                       header=','.join([f'p(class={c})' for c in classes]))
+                                            f'{model_name}_perturb_{noise.replace(" ", "_").lower()}_L{l_ind:02d}_s{seed}.csv')
+
+#             np.savetxt(predictions_file, predictions, delimiter=',', 
+#                        header=','.join([f'p(class={c})' for c in classes]))
+
+            classifications = np.argmax(predictions, axis=1)
+
+            # Check accuracy based on probabilities matches accuracy from .evaluate
+            assert len(classifications) == len(y_labels)
+            accuracy = sum(classifications == y_labels) / len(y_labels)
+#             cat_acc = categorical_accuracy(y_labels, classifications).numpy()
+#             assert np.isclose(accuracy, cat_acc), f"Calculated: {accuracy} =/= Library: {cat_acc}"
+            assert np.isclose(accuracy, metrics[1], atol=1e-6), f"Calculated: {accuracy} =/= Evaluated: {metrics[1]}"
+#             if not np.isclose(accuracy, metrics[1], atol=1e-6):  # +/- 0.00001 # +/- 0.00005
+#                 print(f"Calculated: {accuracy} =/= Evaluated: {metrics[1]}")
+
+            # Put predictions into DataFrame
+            df_noise = pd.DataFrame(predictions, columns=classes)
+            df_noise["Predicted"] = classifications
+            df_noise["Class"] = y_labels
+            df_noise["Correct"] = classifications == y_labels
+            df_noise["Image"] = range(len(y_labels))
+            df_noise["Noise"] = [noise] * len(y_labels)
+            df_noise["LI"] = [l_ind] * len(y_labels)
+            df_noise["Level"] = [level] * len(y_labels)
+
+            df_noise.to_csv(predictions_file, index=False)
+
             del predictions
 
-        row = {'Trial': trial, 'Model': mod, 
-               'Convolution': convolution, 'Base': base, 'Weights': weights,
-               'Noise': noise, 'Level': level,
-               'Loss': metrics[0], 'Accuracy': metrics[1]}
+        if save_predictions:
+            acc = accuracy  # Manual calculation is more accurate, probably due to rounding errors
+        else:
+            acc = metrics[1]
+#         acc = metrics[1]
+
+        row = {'Model': mod, 'Convolution': convolution, 'Base': base,
+               'Weights': str(weights), 'Trial': trial, 'Seed': seed,
+               'Noise': noise, 'LI': l_ind, 'Level': level,
+               'Loss': metrics[0], 'Accuracy': acc}
         with open(results_file, 'a') as results:
             writer = csv.DictWriter(results, fieldnames=fieldnames)
             writer.writerow(row)
         # rows.append(row)
-        
+
         # Clean up after every perturbation level
         del prep_image
         del gen_test
