@@ -17,7 +17,7 @@ _CHANNEL_MEANS = [103.939, 116.779, 123.68]  # BGR
 # L = R * 299/1000 + G * 587/1000 + B * 114/1000  # Used by Pillow.Image.convert('L')
 _LUMINANCE_MEAN = 123.68 * 0.299 + 116.779 * 0.587 + 103.939 * 0.114  # 117.378639
 
-
+stochastic_perturbations = ("Uniform", "Salt and Pepper", "Phase Scrambling")
 
 def get_directory_generator(image_directory, #preprocessing_function=None, 
                             rescale=1/255,  # invert=False, 
@@ -196,7 +196,7 @@ def get_perturbations(n_levels=11):
 
 def get_noise_preprocessor(name, function=None, level=None, contrast_level=1,
                            bg_grey=None, rng=None, rescale=1/255):
-    
+
     if name == "Uniform":
         perturbation_fn = functools.partial(function, width=level, 
                                             contrast_level=contrast_level, rng=rng)
@@ -208,7 +208,7 @@ def get_noise_preprocessor(name, function=None, level=None, contrast_level=1,
     elif name == "Contrast":
         perturbation_fn = functools.partial(function, contrast_level=level)    
     elif name == "Phase Scrambling":
-        perturbation_fn = functools.partial(function, width=level)
+        perturbation_fn = functools.partial(function, width=level, rng=rng)
     elif name == "Rotation":
         perturbation_fn = functools.partial(function, degrees=level)
     elif name in ["Darken", "Brighten", "Invert"]:
@@ -507,14 +507,14 @@ def low_pass_filter(image, std, bg_grey=0.4423):
     return np.dstack((new_image,new_image,new_image))
 
 
-def phase_scrambling(image, width):
+def phase_scrambling(image, width, rng=None):
     """Apply random shifts to an images' frequencies' phases in the Fourier domain.
     
     parameter:
     - image: an numpy.ndaray
     - width: maximal width of the random phase shifts"""
 
-    return scramble_phases(image, width)
+    return scramble_phases(image, width, rng)
 
 
 def power_equalisation(image, avg_power_spectrum):
@@ -527,7 +527,7 @@ def power_equalisation(image, avg_power_spectrum):
     return equalise_power_spectrum(image, avg_power_spectrum)
 
 
-def scramble_phases(image, width):
+def scramble_phases(image, width, rng=None):
     """Apply random shifts to an images' frequencies' phases in the Fourier domain.
     
     parameter:
@@ -536,7 +536,10 @@ def scramble_phases(image, width):
 
     # create array with random phase shifts from the interval [-width,width]
     length = (image.shape[0]-1)*(image.shape[1]-1)
-    phase_shifts = np.random.random(length//2) - 0.5
+    if rng is None:
+        phase_shifts = np.random.random(length//2) - 0.5
+    else:
+        phase_shifts = rng.random(length//2) - 0.5
     phase_shifts = phase_shifts * 2 * width/180 * np.pi
 
     # convert to graysclae
