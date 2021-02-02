@@ -1089,7 +1089,7 @@ def calc_aucs(df, verbose=1):
         for model in models:
             query = f"Noise == '{noise}' and Model == '{model}'"
             x = df.query(f"{query} and Trial == 1").Level.to_numpy()
-            y = df.query(query).groupby('Level').mean().Accuracy.to_numpy()
+            y = df.query(query).groupby('Level').mean().Accuracy.to_numpy()  # Average over trials
 
             scores[noise][model] = auc(x, y)
             if verbose:

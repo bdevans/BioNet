@@ -338,6 +338,9 @@ def get_most_activating_features(model, layer_index, channel_index, epochs=100, 
 
 
     # Initiate random noise
+    # Reinitialise the RNG so specify a filter_index gives the same results
+    # as when one is randomly selected above
+#     np.random.seed(seed)
     input_img_data = np.random.random((1, 224, 224, 1))
     input_img_data = (input_img_data - 0.5) * 20 #+ 128.
     # Cast random noise from np.float64 to tf.float32 Variable
