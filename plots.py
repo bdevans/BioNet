@@ -19,9 +19,10 @@ from sklearn.metrics import auc
 from scipy.integrate import simps
 
 from GaborNet.utils import find_conv_layer, calc_sigma, calc_lambda  # calc_bandwidth,
-from GaborNet.preparation import (cifar_wrapper, sanity_check, 
+from GaborNet.preparation import (perturbations, cifar_wrapper, sanity_check,
                                   invert_luminance, get_noise_preprocessor)
-from GaborNet.config import classes, n_classes, luminance_weights
+from GaborNet.config import (convolutions_order, bases_order,
+                             classes, n_classes, luminance_weights)
 
 
 # luminance_weights = np.array([0.299, 0.587, 0.114])
@@ -579,14 +580,14 @@ def plot_image_predictions(label, models, top_k=3, params=None, gpu=None):
                 f"Created figure: {output}"
 
 
-def plot_perturbations(df, tag=None, landscape=True, wrap=5, fig_sf=2, verbose=0):
+def plot_perturbations(df, tag=None, wrap=5, fig_sf=2, verbose=0):  # landscape=True, 
     """Plot a grid of performance versus level curves for a battery of noise perturbations."""
 
-    noise_types = ["Uniform", "Salt and Pepper", "High Pass", "Low Pass", 
-                   "Contrast", "Phase Scrambling", "Darken", "Brighten", 
-                   "Rotation", "Invert"]
-
-    chance_level = 0.1  # Assumes performance is measured on CIFAR-10 images
+#     noise_types = ["Uniform", "Salt and Pepper", "High Pass", "Low Pass", 
+#                    "Contrast", "Phase Scrambling", "Darken", "Brighten", 
+#                    "Rotation", "Invert"]
+    noise_types = perturbations
+    chance_level = 1 / n_classes
 
     models = df.Model.unique().tolist()
     convolutions = df.Convolution.unique().tolist()
@@ -600,20 +601,24 @@ def plot_perturbations(df, tag=None, landscape=True, wrap=5, fig_sf=2, verbose=0
     # with sns.axes_style("ticks"):
     with sns.axes_style("darkgrid"):
 
-        if landscape:
-            ncols = wrap
-            nrows = int(math.ceil(len(noise_types)/ncols))
-            # fig, axes = plt.subplots(ncols, int(math.ceil(len(noise_types)/ncols)),
-            #                          sharey=True, squeeze=True, figsize=(24,12))
-        else:  # portrait
-            ncols = int(math.ceil(len(noise_types)/ncols))
-            nrows = wrap
+#         if landscape:
+#             ncols = wrap
+#             nrows = int(math.ceil(len(noise_types)/ncols))
+#             # fig, axes = plt.subplots(ncols, int(math.ceil(len(noise_types)/ncols)),
+#             #                          sharey=True, squeeze=True, figsize=(24,12))
+#         else:  # portrait
+#             nrows = wrap
+#             ncols = int(math.ceil(len(noise_types)/nrows))
+
+        ncols = wrap
+        nrows = int(math.ceil(len(noise_types)/ncols))
         fig, axes = plt.subplots(nrows, ncols, sharey=True, squeeze=True, 
                                  figsize=(ncols * fig_sf, nrows * fig_sf))
         
         for (noise, ax) in zip(noise_types, axes.ravel()):
-            ax = sns.lineplot(x='Level', y='Accuracy', style='Base', 
-                              hue='Convolution', hue_order=sorted(convolutions),
+            ax = sns.lineplot(x='Level', y='Accuracy',
+                              style='Base', style_order=bases_order,
+                              hue='Convolution', hue_order=convolutions_order,
                               data=df[df.Noise==noise], ax=ax)
             if ax.get_legend():
                 ax.get_legend().set_visible(False)
@@ -639,7 +644,7 @@ def plot_perturbations(df, tag=None, landscape=True, wrap=5, fig_sf=2, verbose=0
             ax.get_legend().set_visible(True)  # Show in final subfigure
         plt.tight_layout()
         if tag is not None:
-            fig.savefig(f'/work/results/perturbations_{tag}.png')
+            fig.savefig(f'/work/results/{tag}/perturbations.png')
 
     return fig, axes
 
@@ -649,7 +654,7 @@ def plot_auc_ratios(df, tag=None):
     with sns.axes_style("darkgrid"):
         fig = plt.figure(figsize=(20,6))
         ax = sns.barplot(data=df, x='Noise', y='Ratio', hue='Model')
-        # sns.catplot(data=df_long, x='Noise', y='Ratio', hue='Model', kind='bar', aspect=2)
+#         sns.catplot(data=df, x='Noise', y='Ratio', hue='Model', kind='bar', aspect=2)
     #     ax.axhline(y=0, c='k')
         ax.axhline(y=1, c='gray', ls='--')
     #     sns.despine(trim=True, bottom=True)  # offset=10, 

@@ -18,6 +18,10 @@ _CHANNEL_MEANS = [103.939, 116.779, 123.68]  # BGR
 _LUMINANCE_MEAN = 123.68 * 0.299 + 116.779 * 0.587 + 103.939 * 0.114  # 117.378639
 
 stochastic_perturbations = ("Uniform", "Salt and Pepper", "Phase Scrambling")
+perturbations = ["Uniform", "Salt and Pepper", "High Pass", "Low Pass", 
+                 "Contrast", "Phase Scrambling", "Darken", "Brighten", 
+                 "Rotation", "Invert"]
+
 
 def get_directory_generator(image_directory, #preprocessing_function=None, 
                             rescale=1/255,  # invert=False, 
