@@ -57,10 +57,15 @@ logs_dir = '/work/logs'
 results_dir = '/work/results'
 
 image_dir = '/work/data'
+# TODO: Remove all_test_sets
 all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
 generalisation_types = ['line_drawings', 'silhouettes', 'contours']
-generalisation_sets = ['line_drawings', 'silhouettes', 'contours',
-                       'line_drawings_inverted', 'silhouettes_inverted', 'contours_inverted']
+# generalisation_sets = ['line_drawings', 'silhouettes', 'contours',
+#                        'line_drawings_inverted', 'silhouettes_inverted', 'contours_inverted']
+
+generalisation_sets = ['line_drawings', 'line_drawings_inverted',
+                       'contours', 'contours_inverted',
+                       'silhouettes', 'silhouettes_inverted']
 
 # Data format
 perturb_columns = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
