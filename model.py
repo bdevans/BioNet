@@ -522,7 +522,8 @@ model_name = f'{mod}_{trial}'
 #     sim_set = f"{mod}_t{trial}_e{epochs}_s{seed}"
 sim_set = f"{model_name}_s{seed}"
 sim_file = f"{sim_set}.json"
-with open(os.path.join(save_to_dir, sim_file), "w") as sf:  # "metrics"
+os.makedirs(os.path.join(save_to_dir, 'parameters'), exist_ok=True)
+with open(os.path.join(save_to_dir, "parameters", sim_file), "w") as sf:
     json.dump(sim, sf, indent=4)
 
 if save_images:
