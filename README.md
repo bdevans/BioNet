@@ -1,2 +1,2 @@
-# GaborNet
-Deep CNN with Gabor filters
+# BioNet
+Deep Convolutional Neural Networks with bio-inspired filters. 
