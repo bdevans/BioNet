@@ -31,8 +31,8 @@ from scipy.integrate import simps
 from tqdm import tqdm
 from matplotlib import pyplot as plt
 
-from GaborNet.config import (luminance_weights, generalisation_sets, classes)
-from GaborNet.preparation import get_perturbations
+from bionet.config import (luminance_weights, generalisation_sets, classes)
+from bionet.preparation import get_perturbations
 # all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
 # generalisation_sets = ['line_drawings', 'silhouettes', 'contours',
 #                        'line_drawings_inverted', 'silhouettes_inverted', 'contours_inverted']

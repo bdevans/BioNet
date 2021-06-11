@@ -18,11 +18,11 @@ from tensorflow.keras import backend as K
 from sklearn.metrics import auc
 from scipy.integrate import simps
 
-from GaborNet.utils import find_conv_layer, calc_sigma, calc_lambda  # calc_bandwidth,
-from GaborNet.preparation import (perturbations, cifar_wrapper, sanity_check,
-                                  invert_luminance, get_noise_preprocessor)
-from GaborNet.config import (convolutions_order, bases_order,
-                             classes, n_classes, luminance_weights)
+from bionet.utils import find_conv_layer, calc_sigma, calc_lambda  # calc_bandwidth,
+from bionet.preparation import (perturbations, cifar_wrapper, sanity_check, 
+                                invert_luminance, get_noise_preprocessor)
+from bionet.config import (convolutions_order, bases_order, classes, 
+                           n_classes, luminance_weights)
 
 
 # luminance_weights = np.array([0.299, 0.587, 0.114])

@@ -27,28 +27,51 @@ from tensorflow.keras.metrics import (categorical_crossentropy,
                                       categorical_accuracy, 
                                       top_k_categorical_accuracy)
 
+print(os.getcwd())
+print(sys.path)
+# print("Trying import...!")
+import bionet.preparation
+from bionet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_fn, 
+                                get_perturbations, stochastic_perturbations,
+                                cifar_wrapper, get_noise_preprocessor, 
+                                sanity_check,
+                                uniform_noise, salt_and_pepper_noise, 
+                                high_pass_filter, low_pass_filter,
+                                adjust_contrast, scramble_phases,
+                                rotate_image, adjust_brightness, 
+                                invert_luminance)
+# print("Import succeeded!")
+# print(sys.argv)
+
+# project_root_dir = os.path.dirname(os.path.realpath(__file__))
+# print(project_root_dir)
+# sys.exit()
+
 # sys.path.append('/work/generalisation-humans-DNNs/code')
 # sys.path.append('/work/generalisation-humans-DNNs/code/accuracy_evaluation/')
 # sys.path.append('/work/code/keras_lr_finder/')
 # from mappings import HumanCategories
-from GaborNet.config import (data_set, classes, n_classes, luminance_weights, 
-                             colour, contrast_level,
-                             upscale, image_size, image_shape, train_image_stats,
-                             data_dir, models_dir, logs_dir, results_dir,
-                             generalisation_types,
-                             max_queue_size, workers, use_multiprocessing,
-                             report, extension)
-from GaborNet import utils, plots
-from GaborNet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_fn, 
-                                  get_perturbations, stochastic_perturbations,
-                                  cifar_wrapper, get_noise_preprocessor, 
-                                  sanity_check,
-                                  uniform_noise, salt_and_pepper_noise, 
-                                  high_pass_filter, low_pass_filter,
-                                  adjust_contrast, scramble_phases,
-                                  rotate_image, adjust_brightness, 
-                                  invert_luminance)
-from all_cnn.networks import allcnn, allcnn_imagenet
+from bionet.config import (data_set, classes, n_classes, luminance_weights, 
+                           colour, contrast_level,
+                           upscale, image_size, image_shape, train_image_stats,
+#                            data_dir, models_dir, logs_dir, results_dir,
+                           generalisation_types,
+                           max_queue_size, workers, use_multiprocessing,
+                           report, extension)
+from bionet import utils, plots
+from bionet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_fn, 
+                                get_perturbations, stochastic_perturbations,
+                                cifar_wrapper, get_noise_preprocessor, 
+                                sanity_check,
+                                uniform_noise, salt_and_pepper_noise, 
+                                high_pass_filter, low_pass_filter,
+                                adjust_contrast, scramble_phases,
+                                rotate_image, adjust_brightness, 
+                                invert_luminance)
+try:
+    from all_cnn.networks import allcnn, allcnn_imagenet
+except ImportError:
+    print("Please add an implementation of ALL-CNN to your path!")
 
 # NOTE: Randomness and reproducibility
 # https://machinelearningmastery.com/reproducible-results-neural-networks-keras/
@@ -154,6 +177,8 @@ parser.add_argument('-p', '--save_predictions', action='store_true', default=Fal
                     help='Flag to save category predictions')
 parser.add_argument('--gpu', type=int, default=0, required=False,
                     help='GPU ID to run on')
+parser.add_argument('--project_dir', type=str, default='',
+                    help='Path to the root project directory')
 parser.add_argument('-v', '--verbose', type=int, default=0, required=False,
                     help='Verbosity level')
 
@@ -193,9 +218,12 @@ save_predictions = args['save_predictions']
 seed = args['seed']  # 420420420
 trial = args['trial']
 label = args['label']
+project_dir = args['project_dir']
 verbose = args['verbose']
 
 assert 0 < trial
+
+print(args)
 
 # Stimuli metadata
 # luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma transform)
@@ -333,6 +361,16 @@ filter_params = params
 # report = 'batch'  # 'epoch'
 # use_initializer = False
 # extension = 'h5'  # For saving model/weights
+
+# Setup project directories
+if not project_dir:
+    project_dir = os.path.dirname(os.path.realpath(__file__))
+print(project_dir)
+
+data_dir = os.path.join(project_dir, "data")
+models_dir = os.path.join(project_dir, "models")
+logs_dir = os.path.join(project_dir, "logs")
+results_dir = os.path.join(project_dir, "results")
 
 # data_dir = '/work/data'
 # # Output paths
@@ -816,7 +854,7 @@ if test_generalisation:
 
 # if test_image_path and os.path.isdir(test_image_path):
 for test_set in test_sets:
-    test_image_path = os.path.join(data_dir, test_set)
+    test_image_path = os.path.join(data_dir, "CIFAR-10G", f"{image_size[0]}x{image_size[1]}", test_set)
     assert os.path.isdir(test_image_path)
 
     for invert in inversions:

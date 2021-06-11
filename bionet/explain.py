@@ -10,14 +10,14 @@ import cv2
 from matplotlib import pyplot as plt
 from tf_explain.core.grad_cam import GradCAM
 
-from GaborNet.preparation import (get_directory_generator, 
+from bionet.preparation import (get_directory_generator, 
                                   get_noise_preprocessor, 
                                   invert_luminance)
-from GaborNet.utils import load_model, find_conv_layer
-from GaborNet.config import (luminance_weights, interpolation,
-                             train_image_stats, 
-                             generalisation_sets, generalisation_types,
-                             image_dir)
+from bionet.utils import load_model, find_conv_layer
+from bionet.config import (luminance_weights, interpolation,
+                           train_image_stats, 
+                           generalisation_sets, generalisation_types,
+                           image_dir)
 
 
 mean, std = train_image_stats[interpolation]

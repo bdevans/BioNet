@@ -242,7 +242,7 @@ def cifar_wrapper(f, rescale=1/255):
     
     Examples:
         >>> cifar_wrapper(uniform_noise)
-        <function GaborNet.preparation.uniform_noise(image, width, contrast_level, rng)>
+        <function bionet.preparation.uniform_noise(image, width, contrast_level, rng)>
     
         Note: To set noise levels, it a partial function must first be created to pass to this wrapper:
         >>> import functools
@@ -254,7 +254,7 @@ def cifar_wrapper(f, rescale=1/255):
         >>> f = functools.partial(uniform_noise, width=3, 
         >>>                       contrast_level=0.8, rng=42)
         >>> cifar_wrapper(f)
-        <function GaborNet.preparation.cifar_wrapper.<locals>.wrapper(image, *, width=3, contrast_level=0.8, rng=42)>
+        <function bionet.preparation.cifar_wrapper.<locals>.wrapper(image, *, width=3, contrast_level=0.8, rng=42)>
     """
     @functools.wraps(f)
     def wrapper(image):

@@ -49,14 +49,14 @@ use_multiprocessing = False
 report = 'batch'  # 'epoch'
 extension = 'h5'  # For saving model/weights
 
-# Project directories
-data_dir = '/work/data'
-# Output paths
-models_dir = '/work/models'
-logs_dir = '/work/logs'
-results_dir = '/work/results'
+# # Project directories
+# data_dir = '/work/data'
+# # Output paths
+# models_dir = '/work/models'
+# logs_dir = '/work/logs'
+# results_dir = '/work/results'
 
-image_dir = '/work/data'
+# image_dir = '/work/data'
 # TODO: Remove all_test_sets
 all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
 generalisation_types = ['line_drawings', 'silhouettes', 'contours']
