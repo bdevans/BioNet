@@ -184,6 +184,10 @@ parser.add_argument('-v', '--verbose', type=int, default=0, required=False,
 
 args = vars(parser.parse_args())  # vars() returns a dict
 
+if not args:
+    parser.print_help()
+    parser.exit(1)
+
 gpus = tf.config.experimental.list_physical_devices('GPU')
 assert 0 <= args["gpu"] < len(gpus)
 tf.config.experimental.set_visible_devices(gpus[args["gpu"]], 'GPU')
@@ -223,7 +227,8 @@ verbose = args['verbose']
 
 assert 0 < trial
 
-print(args)
+if verbose:
+    pprint(args)
 
 # Stimuli metadata
 # luminance_weights = np.array([0.299, 0.587, 0.114])  # RGB (ITU-R 601-2 luma transform)
