@@ -204,7 +204,7 @@ def get_images(image, preprocessing_function=None, image_dir='/work/data'):
 def load_images(path, shuffle=True, verbose=1):
 
     image_set = {}
-    for root, dirs, files in os.walk(path):
+    for root, dirs, files in os.walk(path, followlinks=True):
         if root == path:
             categories = sorted(dirs)
             image_set = {cat: [] for cat in categories}

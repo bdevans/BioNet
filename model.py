@@ -28,20 +28,7 @@ from tensorflow.keras.metrics import (categorical_crossentropy,
                                       top_k_categorical_accuracy)
 
 print(os.getcwd())
-print(sys.path)
-# print("Trying import...!")
-import bionet.preparation
-from bionet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_fn, 
-                                get_perturbations, stochastic_perturbations,
-                                cifar_wrapper, get_noise_preprocessor, 
-                                sanity_check,
-                                uniform_noise, salt_and_pepper_noise, 
-                                high_pass_filter, low_pass_filter,
-                                adjust_contrast, scramble_phases,
-                                rotate_image, adjust_brightness, 
-                                invert_luminance)
-# print("Import succeeded!")
-# print(sys.argv)
+pprint.pprint(sys.path)
 
 # project_root_dir = os.path.dirname(os.path.realpath(__file__))
 # print(project_root_dir)
@@ -51,9 +38,12 @@ from bionet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_f
 # sys.path.append('/work/generalisation-humans-DNNs/code/accuracy_evaluation/')
 # sys.path.append('/work/code/keras_lr_finder/')
 # from mappings import HumanCategories
-from bionet.config import (data_set, classes, n_classes, luminance_weights, 
+from bionet.config import (#data_set, classes, n_classes, 
+                           classes, n_classes,
+                           luminance_weights,
                            colour, contrast_level,
                            upscale, image_size, image_shape, train_image_stats,
+                           interpolation_names,
 #                            data_dir, models_dir, logs_dir, results_dir,
                            generalisation_types,
                            max_queue_size, workers, use_multiprocessing,
@@ -100,6 +90,7 @@ pprint.pprint(gpus)
 print(f"Backend set to: {tf.keras.backend.floatx()}")  # Needed to stop OOM error with data_gen.flow() on TF>2.2
 
 # warnings.filterwarnings("ignore", "Corrupt EXIF data", UserWarning)
+warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data.", UserWarning)
 warnings.filterwarnings("ignore", "tensorflow:Model failed to serialize as JSON.", Warning)
 
 
@@ -110,7 +101,7 @@ parser.add_argument('--convolution', type=str, default='Original',
 parser.add_argument('--base', type=str, default='VGG16',
                     help='Name of model to use')
 parser.add_argument('--pretrain', action='store_true', # type=bool, default=False,
-                    help='Flag to use ImageNet weights the model')
+                    help='Flag to use pretrained ImageNet weights in the model')
 parser.add_argument('--architecture', type=str, default='model.json',
                     help='Parameter file (JSON) to load')
 # parser.add_argument('--upscale', action='store_true', #default=False, required=False,
@@ -149,6 +140,8 @@ parser.add_argument('--epochs', type=int, default=20, required=False,
                     help='Number of epochs to train model')
 parser.add_argument("--batch", type=int, default=64,
                     help="Size of mini-batches passed to the network")
+# parser.add_argument('--data_set', type=str, default='CIFAR10', required=False,
+#                     help="Predefined data set to use")
 parser.add_argument('--image_path', type=str, default='',
                     help='Path to image files to load')
 parser.add_argument('--train_image_path', type=str, default='',
@@ -426,100 +419,171 @@ noise_types = get_perturbations(n_levels=n_levels)
 #     # image_shape = (32, 32, 1)
 
 # interpolation = cv2.INTER_LANCZOS4  # cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_AREA, cv2.INTER_CUBIC
+interpolation_name = interpolation_names[interpolation]
+
+preload = False  # NOTE: Disabled as this should only be used with small image sets
 
 if image_path and os.path.isdir(image_path):
+    data_set = os.path.basename(os.path.normpath(image_path))
     load_images_from_disk = True
-    # Assumes there are the directories "train" and "test" in image_path
+    # NOTE: Expects `image_path` to have sub-directories "train" and "test"
 
-    train_images, x_train, y_train = utils.load_images(os.path.join(image_path, 'train'))
-    assert n_classes == len(train_images)
+    # NOTE: Assumes the same classes as CIFAR10 (imported from config)
+    assert os.path.isdir(os.path.join(image_path, 'train'))
+    if os.path.isdir(os.path.join(image_path, 'val')):
+        validation_image_path = os.path.join(image_path, 'val')
+    else:
+        assert os.path.isdir(os.path.join(image_path, 'test'))
+        validation_image_path = os.path.join(image_path, 'test')
+    perturbation_image_path = validation_image_path  # NOTE: This uses validation images if present, otherwise the test set
 
-    test_images, x_test, y_test = utils.load_images(os.path.join(image_path, 'test'))  # test_path
-    assert n_classes == len(test_images)
+    if preload:
+        train_image_sets, x_train, y_train = utils.load_images(os.path.join(image_path, 'train'))
+        # Overwrite classes
+        classes = list(train_image_sets)
+        n_classes = len(classes)  # len(train_image_sets)
+
+        if os.path.isdir(validation_image_path):
+            val_image_sets, x_val, y_val = utils.load_images(validation_image_path)
+            assert n_classes == len(val_image_sets)
+
+        test_image_sets, x_test, y_test = utils.load_images(os.path.join(image_path, 'test'), shuffle=False)
+        assert n_classes == len(test_image_sets)
 
 # if test_image_path and os.path.isdir(test_image_path):
 
+else:  # Default to standard CIFAR10 training and testing images
 
-# Set up stimuli
-(x_train, y_train), (x_test, y_test) = cifar10.load_data()  # RGB format
-x_train = np.expand_dims(np.dot(x_train, luminance_weights), axis=-1)
-x_test = np.expand_dims(np.dot(x_test, luminance_weights), axis=-1)
-y_train = to_categorical(y_train, num_classes=n_classes, dtype='uint8')
-y_test = to_categorical(y_test, num_classes=n_classes, dtype='uint8')
+    load_images_from_disk = False
+    # Set up stimuli
+    data_set = "CIFAR10"
+    # Imported from config
+#     classes = ('airplane', 'automobile', 'bird', 'cat', 'deer', 
+#                'dog', 'frog', 'horse', 'ship', 'truck')
+#     n_classes = len(classes)
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()  # RGB format
+    x_train = np.expand_dims(np.dot(x_train, luminance_weights), axis=-1)
+    x_test = np.expand_dims(np.dot(x_test, luminance_weights), axis=-1)
+    y_train = to_categorical(y_train, num_classes=n_classes, dtype='uint8')
+    y_test = to_categorical(y_test, num_classes=n_classes, dtype='uint8')
 
 # print('-' * 80)
-if upscale:
-    if interpolation:  #interpolate:
-        print(f'Interpolating upscaled images with "{interpolation}"...')
-        x_train_interp = np.zeros(shape=(x_train.shape[0], *image_shape), dtype=np.float16)
-        for i, image in enumerate(x_train):
-            x_train_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
-                                                interpolation=interpolation)
-        del x_train
-        x_train = x_train_interp
-        x_train[x_train < 0] = 0
-        x_train[x_train > 255] = 255
+if not load_images_from_disk or preload:
+    if upscale:
+        if interpolation:  #interpolate:
+            print(f'Interpolating upscaled images with "{interpolation}" ({interpolation_name})...')
+            x_train_interp = np.zeros(shape=(x_train.shape[0], *image_shape), dtype=np.float16)
+            for i, image in enumerate(x_train):
+                x_train_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
+                                                    interpolation=interpolation)
+            del x_train
+            x_train = x_train_interp
+            x_train[x_train < 0] = 0
+            x_train[x_train > 255] = 255
 
-        x_test_interp = np.zeros(shape=(x_test.shape[0], *image_shape), dtype=np.float16)
-        for i, image in enumerate(x_test):
-            x_test_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
-                                                interpolation=interpolation)
-        del x_test
-        x_test = x_test_interp        
-        x_test[x_test < 0] = 0
-        x_test[x_test > 255] = 255
-    else:  # Redundant as this is equivalent to interpolation == 0
-        # Equivalent to cv2.INTER_NEAREST (or PIL.Image.NEAREST)
-        x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
-        x_test = x_test.repeat(7, axis=1).repeat(7, axis=2)
+            x_test_interp = np.zeros(shape=(x_test.shape[0], *image_shape), dtype=np.float16)
+            for i, image in enumerate(x_test):
+                x_test_interp[i, :, :, 0] = cv2.resize(image, dsize=image_size, 
+                                                    interpolation=interpolation)
+            del x_test
+            x_test = x_test_interp        
+            x_test[x_test < 0] = 0
+            x_test[x_test > 255] = 255
+        else:  # Redundant as this is equivalent to interpolation == 0
+            # Equivalent to cv2.INTER_NEAREST (or PIL.Image.NEAREST)
+            x_train = x_train.repeat(7, axis=1).repeat(7, axis=2)
+            x_test = x_test.repeat(7, axis=1).repeat(7, axis=2)
 
-# NOTE: This is later overridden by the ImageDataGenerator to tf.keras.backend.floatx() (default: 'float32')
-x_train = x_train.astype(np.float16)
-x_test = x_test.astype(np.float16)
+    # NOTE: This is later overridden by the ImageDataGenerator to tf.keras.backend.floatx() (default: 'float32')
+    x_train = x_train.astype(np.float16)
+    x_test = x_test.astype(np.float16)
 
-# TODO: Implement for testing stimuli
-# if weights == 'imagenet':
-#     print("Replicating grayscale layer to match expected input size...")
-#     x_train = x_train.repeat(3, axis=-1)
-#     x_test = x_test.repeat(3, axis=-1)
+    # TODO: Implement for testing stimuli
+    # if weights == 'imagenet':
+    #     print("Replicating grayscale layer to match expected input size...")
+    #     x_train = x_train.repeat(3, axis=-1)
+    #     x_test = x_test.repeat(3, axis=-1)
 
-# Summarise stimuli
-print(f'x_train.shape: {x_train.shape}')
-print(f'Training: {x_train.shape[0]} in {y_train.shape[1]} categories')
-print(f'Testing: {x_test.shape[0]} in {y_test.shape[1]} categories')
+    # Summarise stimuli
+    print(f'x_train.shape: {x_train.shape}')
+    print(f'Training: {x_train.shape[0]} in {y_train.shape[1]} categories')
+    print(f'Testing: {x_test.shape[0]} in {y_test.shape[1]} categories')
 
-if data_set == 'CIFAR10' and colour == 'grayscale':
-    if interpolation in train_image_stats:
-        mean, std = train_image_stats[interpolation]
-#     if (interpolation == cv2.INTER_NEAREST) or not interpolate:
-#         mean = 122.61930353949222
-#         std = 60.99213660091195
-#     elif interpolation == cv2.INTER_LANCZOS4:
-#         # Without clipping
-#         # mean = 122.6172103881836
-#         # std = 60.89457321166992
-#         # After clipping
-#         mean = 122.61385345458984
-#         std = 60.87860107421875
-    else:
-        print(f'Uncached interpolation method: {interpolation}')
-        recalculate_statistics = True
-else:
+# if data_set.upper() == 'CIFAR10' and colour == 'grayscale':
+#     if interpolation in train_image_stats:
+#         mean, std = train_image_stats[interpolation]
+# #     if (interpolation == cv2.INTER_NEAREST) or not interpolate:
+# #         mean = 122.61930353949222
+# #         std = 60.99213660091195
+# #     elif interpolation == cv2.INTER_LANCZOS4:
+# #         # Without clipping
+# #         # mean = 122.6172103881836
+# #         # std = 60.89457321166992
+# #         # After clipping
+# #         mean = 122.61385345458984
+# #         std = 60.87860107421875
+#     else:
+#         print(f'Uncached interpolation method: {interpolation}')
+#         recalculate_statistics = True
+# else:
+#     recalculate_statistics = True
+
+# Default normalisation method
+featurewise_normalisation = True
+samplewise_normalisation = False
+        
+if (not recalculate_statistics
+    and colour == 'grayscale'
+    and image_size == (224, 224)
+    and data_set.lower() in train_image_stats
+    and interpolation_name in train_image_stats[data_set.lower()]):
+    
+    mean, std = train_image_stats[data_set.lower()][interpolation_name]
+else:  # Featurewise statistics not cached
+    print(f'Uncached interpolation method: {interpolation_name} for {data_set}!')
     recalculate_statistics = True
 
-if recalculate_statistics:  # or interpolate:
-    print('Recalculating training image statistics...')
-    data_gen = ImageDataGenerator(featurewise_center=True, featurewise_std_normalization=True)
-    data_gen.fit(x_train)
-    mean = np.squeeze(data_gen.mean).tolist()
-    std = np.squeeze(data_gen.std).tolist()
+    print('Recalculating training image statistics...')    
+    if load_images_from_disk:
+        featurewise_normalisation = False
+        samplewise_normalisation = True
+        print("INFO: Loading images form disk so switching to samplewise normalisation.")
+#         # Fit to a random sample of images from directory
+#         gen_train_sample = data_gen.flow_from_directory(
+#             os.path.join(image_path, 'train'),
+#             target_size=image_size,
+#             color_mode=colour,
+#             interpolation='lanczos',
+#             batch_size=1024,
+#             shuffle=True,
+#             seed=0,
+#             save_to_dir=None,
+#             follow_links=True,
+#             subset=None
+#         )
+#         data_gen.fit(gen_train_sample)
+
+#         mean = np.squeeze(data_gen.mean).tolist()
+#         std = np.squeeze(data_gen.std).tolist()
+    else:
+        featurewise_normalisation = True
+        samplewise_normalisation = False
+        data_gen = ImageDataGenerator(featurewise_center=featurewise_normalisation,
+                                      featurewise_std_normalization=featurewise_normalisation)
+        data_gen.fit(x_train)
+
+        # TODO: Calculate statistics from sample and unindent below
+        mean = np.squeeze(data_gen.mean).tolist()
+        std = np.squeeze(data_gen.std).tolist()
 print(f'Training statistics: mean={mean}; std={std}')
 
 # Save metadata
 # TODO: Simplify by using the args dictionary
 sim = {
     'data_set': data_set,
+    'image_path': image_path,
     'n_classes': n_classes,
+    'classes': classes,
     'train': train,
     'epochs': epochs,
     'optimizer': optimizer,
@@ -661,10 +725,10 @@ else:
         if extra_augmentation:
             print('Using extra data augmentation.')
             data_gen = ImageDataGenerator(
-                featurewise_center=True,
-                samplewise_center=False,
-                featurewise_std_normalization=True,
-                samplewise_std_normalization=False,
+                featurewise_center=featurewise_normalisation,  # True,
+                featurewise_std_normalization=featurewise_normalisation,  # True,
+                samplewise_center=samplewise_normalisation,  # False,
+                samplewise_std_normalization=samplewise_normalisation,  # False,
                 zca_whitening=False,
                 rotation_range=45,
                 brightness_range=(0.2, 1.0),
@@ -679,10 +743,10 @@ else:
         else:
             print('Using data augmentation.')
             data_gen = ImageDataGenerator(
-                featurewise_center=True,
-                samplewise_center=False,
-                featurewise_std_normalization=True,
-                samplewise_std_normalization=False,
+                featurewise_center=featurewise_normalisation,  # True,
+                featurewise_std_normalization=featurewise_normalisation,  # True,
+                samplewise_center=samplewise_normalisation,  # False,
+                samplewise_std_normalization=samplewise_normalisation,  # False,
                 zca_whitening=False,
                 rotation_range=0,
                 width_shift_range=0.1,
@@ -690,16 +754,53 @@ else:
                 horizontal_flip=True,
                 vertical_flip=False)
     else:
-        data_gen = ImageDataGenerator(#preprocessing_function=prep_image,
-                                        featurewise_center=True, 
-                                        featurewise_std_normalization=True)
+        data_gen = ImageDataGenerator(
+            #preprocessing_function=prep_image,
+            featurewise_center=featurewise_normalisation,
+            featurewise_std_normalization=featurewise_normalisation,
+            samplewise_center=samplewise_normalisation,
+            samplewise_std_normalization=samplewise_normalisation,
+        )
     # data_gen.fit(x_train)
-    data_gen.mean = mean
-    data_gen.std = std
-    gen_train = data_gen.flow(x_train, y=y_train, batch_size=batch, 
-                                shuffle=True, seed=seed, save_to_dir=None)
-    gen_valid = data_gen.flow(x_test, y=y_test, batch_size=batch, 
-                                shuffle=True, seed=seed, save_to_dir=None)
+    if featurewise_normalisation:
+        data_gen.mean = mean
+        data_gen.std = std
+    
+    # NOTE: When classes=None, the dictionary containing the mapping from class names to class indices can be obtained via the attribute class_indices.
+
+    if load_images_from_disk:
+        gen_train = data_gen.flow_from_directory(
+            os.path.join(image_path, 'train'),
+            target_size=image_size,
+            color_mode=colour,
+#             classes=classes,
+#             class_mode='categorical',
+            batch_size=batch,
+            shuffle=True,
+            seed=seed,
+            save_to_dir=None,
+            follow_links=True,
+            interpolation=interpolation_names[interpolation],
+            subset=None
+        )
+        #assert gen_train.class_indices
+        gen_valid = data_gen.flow_from_directory(
+            validation_image_path,
+            target_size=image_size,
+            color_mode=colour,
+            batch_size=batch,
+            shuffle=True,
+            seed=seed,
+            save_to_dir=None,
+            follow_links=True,
+            interpolation=interpolation_names[interpolation],
+            subset=None
+        )
+    else:
+        gen_train = data_gen.flow(x_train, y=y_train, batch_size=batch, 
+                                    shuffle=True, seed=seed, save_to_dir=None)
+        gen_valid = data_gen.flow(x_test, y=y_test, batch_size=batch, 
+                                    shuffle=True, seed=seed, save_to_dir=None)
 
     print(f'Checking for {model_data_file}...', flush=True)
     if os.path.exists(model_data_file) and not clean:
@@ -859,11 +960,11 @@ if test_generalisation:
 
 # if test_image_path and os.path.isdir(test_image_path):
 for test_set in test_sets:
-    test_image_path = os.path.join(data_dir, "CIFAR-10G", f"{image_size[0]}x{image_size[1]}", test_set)
-    assert os.path.isdir(test_image_path)
+    generalisation_image_path = os.path.join(data_dir, "CIFAR-10G", f"{image_size[0]}x{image_size[1]}", test_set)
+    assert os.path.isdir(generalisation_image_path)
 
     for invert in inversions:
-        print(f"Testing {model_name} with images from {test_image_path}{' (inverted)' if invert else ''}...", flush=True)
+        print(f"Testing {model_name} with images from {generalisation_image_path}{' (inverted)' if invert else ''}...", flush=True)
         t0 = time.time()
         # rng = np.random.RandomState(seed=seed)
 
@@ -887,8 +988,8 @@ for test_set in test_sets:
         # New method: use the same preprocessor and load pre-inverted images
         prep_image = get_noise_preprocessor("None", rescale=rescale)
         if invert:
-            test_image_path = f"{test_image_path}_inverted"
-            assert os.path.isdir(test_image_path)
+            generalisation_image_path = f"{generalisation_image_path}_inverted"
+            assert os.path.isdir(generalisation_image_path)
 
         data_gen = ImageDataGenerator(# rescale=255,
                                       preprocessing_function=prep_image,
@@ -906,20 +1007,20 @@ for test_set in test_sets:
         data_gen.std = std
 
         if save_images:
-            generalisation_dir = os.path.join(image_out_dir, full_set_name)
-            os.makedirs(generalisation_dir, exist_ok=True)
+            generalisation_image_out_dir = os.path.join(image_out_dir, full_set_name)
+            os.makedirs(generalisation_image_out_dir, exist_ok=True)
             generalisation_prefix = ''
         else:
-            generalisation_dir = None
+            generalisation_image_out_dir = None
             generalisation_prefix = ''
 
-        gen_test = data_gen.flow_from_directory(test_image_path,
+        gen_test = data_gen.flow_from_directory(generalisation_image_path,
                                                 target_size=image_size,
                                                 color_mode=colour,
                                                 batch_size=batch,
                                                 shuffle=False, seed=seed,
-                                                interpolation=interpolation,
-                                                save_to_dir=generalisation_dir, 
+                                                interpolation=interpolation_names[interpolation],
+                                                save_to_dir=generalisation_image_out_dir, 
                                                 save_prefix=generalisation_prefix)
 
         metrics = model.evaluate(gen_test, 
@@ -938,13 +1039,13 @@ for test_set in test_sets:
 
         if save_predictions:  # Get classification probabilities
             # Reinitialise iterator
-            gen_test = data_gen.flow_from_directory(test_image_path,
+            gen_test = data_gen.flow_from_directory(generalisation_image_path,
                                         target_size=image_size,
                                         color_mode=colour,
                                         batch_size=batch,
                                         shuffle=False, seed=seed,
-                                        interpolation=interpolation,
-                                        save_to_dir=generalisation_dir, 
+                                        interpolation=interpolation_names[interpolation],
+                                        save_to_dir=generalisation_image_out_dir, 
                                         save_prefix=generalisation_prefix)
 
             predictions = model.predict(gen_test, 
@@ -1050,7 +1151,22 @@ if (ver_num[0] >= 2) and (ver_num[1] > 2) and True:
 
 fieldnames = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
               'Noise', 'LI', 'Level', 'Loss', 'Accuracy']
-y_labels = np.squeeze(np.argmax(y_test, axis=1))
+
+if load_images_from_disk:
+    # Preload true labels
+    test_batches = ImageDataGenerator().flow_from_directory(perturbation_image_path,
+                                                            batch_size=batch,
+                                                            shuffle=False,
+                                                            follow_links=True,
+                                                           )
+#     test_batches.class_indices.keys()
+    outputs = []
+    for b in range(len(test_batches)):
+        outputs.append(np.argmax(test_batches[b][1], axis=1))
+    y_labels = np.squeeze(np.concatenate(outputs))
+else:
+    y_labels = np.squeeze(np.argmax(y_test, axis=1))
+
 results_file = os.path.join(save_to_dir, "metrics", f"{model_name}_perturb_s{seed}.csv") #f"perturb_{sim_set}.csv") #sim_set = f"{model_name}_s{seed}"
 with open(results_file, 'w') as results:
     writer = csv.DictWriter(results, fieldnames=fieldnames)
@@ -1060,30 +1176,24 @@ with open(results_file, 'w') as results:
 for noise, noise_function, levels in noise_types:
     print(f"[{model_name}] Perturbing test images with {noise} noise...")
     print("-" * 80)
-    
+
     if noise in stochastic_perturbations:
         # Set the number of workers to 1 for reproducility as this avoids 
         # ordering effects when getting batches with stochastic perturbations
         perturbation_workers = 1
     else:
         perturbation_workers = workers
-    
+
     for l_ind, level in enumerate(levels):
         print(f"[{l_ind+1:02d}/{len(levels):02d}] level={float(level):6.2f}: ", end='', flush=True)
 
         t0 = time.time()
-        # t0 = datetime.now()
+
         rng = np.random.RandomState(seed=seed+l_ind)  # Ensure a new RNG state for each level
-
-        # if noise in ["Uniform", "Salt and Pepper"]:  # Stochastic perturbations
-        #     perturbation_fn = functools.partial(noise_function, level, 
-        #                                         contrast_level=1, rng=rng)
-        # else:  # Deterministic perturbation
-        #     perturbation_fn = functools.partial(noise_function, level)
-
         prep_image = get_noise_preprocessor(noise, noise_function, level, 
                                             contrast_level=contrast_level, 
                                             bg_grey=mean/255, rng=rng)
+
 #         if noise == "Uniform":
 #             perturbation_fn = functools.partial(noise_function, width=level, 
 #                                                 contrast_level=contrast_level, rng=rng)
@@ -1107,25 +1217,46 @@ for noise, noise_function, levels in noise_types:
 
 
         # TODO: Check this is still deterministic when parallelised
-        data_gen = ImageDataGenerator(preprocessing_function=prep_image,
-                                        featurewise_center=True, 
-                                        featurewise_std_normalization=True,
-                                        dtype='float16')
-        # data_gen.fit(x_train)  # Set mean and std
-        data_gen.mean = mean
-        data_gen.std = std
+        data_gen = ImageDataGenerator(
+            preprocessing_function=prep_image,
+            featurewise_center=featurewise_normalisation, 
+            featurewise_std_normalization=featurewise_normalisation,
+            samplewise_center=samplewise_normalisation,
+            samplewise_std_normalization=samplewise_normalisation,
+            dtype='float16')
+        if featurewise_normalisation:
+            # data_gen.fit(x_train)  # Set mean and std
+            data_gen.mean = mean
+            data_gen.std = std
 
         if save_images:
-            # image_prefix = f"{noise.replace(' ', '_').lower()}"
-            test_image_dir = os.path.join(image_out_dir, noise.replace(' ', '_').lower())
-            os.makedirs(test_image_dir, exist_ok=True)
+            perturbation_image_out_dir = os.path.join(image_out_dir, noise.replace(' ', '_').lower())
+            os.makedirs(perturbation_image_out_dir, exist_ok=True)
             image_prefix = f"L{l_ind:02d}"
         else:
-            test_image_dir = None
+            perturbation_image_out_dir = None
 
-        gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
-                                 shuffle=False, seed=seed,  # True
-                                 save_to_dir=test_image_dir, save_prefix=image_prefix)
+        if load_images_from_disk:
+            gen_test = data_gen.flow_from_directory(
+                perturbation_image_path,  # os.path.join(image_path, 'test'),
+                target_size=image_size,
+                color_mode=colour,  # Not needed?
+                interpolation=interpolation_name,  # Not needed?
+                batch_size=batch,
+                shuffle=False,
+                seed=seed,
+                save_to_dir=perturbation_image_out_dir,
+                save_prefix=image_prefix,
+                follow_links=True,
+#                 subset=None,
+#             classes=classes,
+#             class_mode='categorical',
+            )
+        else:
+            gen_test = data_gen.flow(
+                x_test, y=y_test, batch_size=batch,
+                shuffle=False, seed=seed,  # True
+                save_to_dir=perturbation_image_out_dir, save_prefix=image_prefix)
 
         # This new method has a memory leak
         metrics = model.evaluate(gen_test, 
@@ -1135,10 +1266,9 @@ for noise, noise_function, levels in noise_types:
                                  max_queue_size=max_queue_size,
                                  workers=perturbation_workers,
                                  use_multiprocessing=use_multiprocessing)
-        # print(model.metrics_names)
-        # print(f"{mod} metrics: {metrics}")
+
         t_elapsed = time.time() - t0
-        # t_elapsed = datetime.now() - t0
+
         if train:
             metrics_dict = {metric: score for metric, score in zip(model.metrics_names, metrics)}
             print(f"{metrics_dict} [{t_elapsed:.3f}s]")
@@ -1155,25 +1285,42 @@ for noise, noise_function, levels in noise_types:
             # are unreproducible. This is likely due to using multiple workers
             # with the ImageDataGenerator. 
 
-            # TODO: Check they are reproducible across runs
             # TODO: Alternatively, generate the same mask for each image
             rng = np.random.RandomState(seed=seed+l_ind)
             prep_image = get_noise_preprocessor(noise, noise_function, level,
                                                 contrast_level=contrast_level,
                                                 bg_grey=mean/255, rng=rng)
-            data_gen = ImageDataGenerator(preprocessing_function=prep_image,
-                                          featurewise_center=True, 
-                                          featurewise_std_normalization=True,
-                                          dtype='float16')
-            data_gen.mean = mean
-            data_gen.std = std
-            gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
-                                     shuffle=False, seed=seed, save_to_dir=None)
+
+            data_gen = ImageDataGenerator(
+                preprocessing_function=prep_image,
+                featurewise_center=featurewise_normalisation, 
+                featurewise_std_normalization=featurewise_normalisation,
+                samplewise_center=samplewise_normalisation,
+                samplewise_std_normalization=samplewise_normalisation,
+                dtype='float16')
+            if featurewise_normalisation:
+                data_gen.mean = mean
+                data_gen.std = std
+
+            if load_images_from_disk:
+                gen_test = data_gen.flow_from_directory(
+                    perturbation_image_path,  # os.path.join(image_path, 'test'),
+                    target_size=image_size,
+                    color_mode=colour,  # Not needed?
+                    interpolation=interpolation_name,  # Not needed?
+                    batch_size=batch,
+                    shuffle=False,
+                    seed=seed,
+                    save_to_dir=None,
+                    follow_links=True,
+                )
+            else:
+                gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
+                                         shuffle=False, seed=seed, save_to_dir=None)
 
             predictions = model.predict(gen_test, 
-                                        verbose=0,
-                                        # steps=gen_test.n//batch,
                                         steps=len(gen_test),
+                                        verbose=0,
                                         max_queue_size=max_queue_size,
                                         workers=perturbation_workers,
                                         use_multiprocessing=use_multiprocessing)
@@ -1191,7 +1338,8 @@ for noise, noise_function, levels in noise_types:
             accuracy = sum(classifications == y_labels) / len(y_labels)
 #             cat_acc = categorical_accuracy(y_labels, classifications).numpy()
 #             assert np.isclose(accuracy, cat_acc), f"Calculated: {accuracy} =/= Library: {cat_acc}"
-            assert np.isclose(accuracy, metrics[1], atol=1e-6), f"Calculated: {accuracy} =/= Evaluated: {metrics[1]}"
+            assert np.isclose(accuracy, metrics[1], atol=1e-6), \
+    f"{noise} [{l_ind+1:02d}/{len(levels):02d}]: Calculated: {accuracy} =/= Evaluated: {metrics[1]}"
 #             if not np.isclose(accuracy, metrics[1], atol=1e-6):  # +/- 0.00001 # +/- 0.00005
 #                 print(f"Calculated: {accuracy} =/= Evaluated: {metrics[1]}")
 

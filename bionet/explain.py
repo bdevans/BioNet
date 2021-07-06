@@ -20,7 +20,7 @@ from bionet.config import (luminance_weights, interpolation,
                            image_dir)
 
 
-mean, std = train_image_stats[interpolation]
+mean, std = train_image_stats["cifar10"][interpolation]
 
 
 def plot_grad_cam(data_set, model_name, test_set=None, image_weight=0.7, fig_sf=2, save_figure=False):

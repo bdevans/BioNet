@@ -10,7 +10,7 @@ convolutions_order = ("Original", "Low-pass", "DoG", "Gabor", "Combined")
 bases_order = ("ALL-CNN", "VGG-16", "VGG-19")
 
 # Images
-data_set = 'CIFAR10'
+# data_set = 'CIFAR10'
 classes = ('airplane', 'automobile', 'bird', 'cat', 'deer', 
            'dog', 'frog', 'horse', 'ship', 'truck')
 n_classes = len(classes)
@@ -37,10 +37,42 @@ else:
 interpolation = cv2.INTER_LANCZOS4
 contrast_level = 1  # Proportion of original contrast level for uniform and salt and pepper noise
 
+# Map of names to OpenCV (cv2) codes
+interpolation_codes = {
+    'nearest': 0,
+    'linear': 1,
+    'cubic': 2,
+    'area': 3,
+    'lanczos': 4,
+    'linear_exact': 5,
+    'nearest_exact': 6,
+    'max': 7,
+    'fill_outliers': 8,
+    'inverse_map': 16
+}
+interpolation_names = {
+    0: 'nearest',
+    4: 'lanczos'
+}
+# PIL interpolation methods
+# nearest, bilinear, bicubic, hamming, box, lanczos
+
 # https://docs.opencv.org/3.4/da/d54/group__imgproc__transform.html
+# train_image_stats = {
+#     cv2.INTER_NEAREST: (122.61930353949222, 60.99213660091195),  # 0: 'nearest'
+#     cv2.INTER_LANCZOS4: (122.61385345458984, 60.87860107421875)  # 4: 'lanczos'
+# }
+
+# Calculated for grayscale images with image_size = (224, 224)
 train_image_stats = {
-    cv2.INTER_NEAREST: (122.61930353949222, 60.99213660091195),  # 0: 'nearest'
-    cv2.INTER_LANCZOS4: (122.61385345458984, 60.87860107421875)  # 4: 'lanczos'
+    "cifar10": {
+        "nearest": (122.61930353949222, 60.99213660091195),
+        "lanczos": (122.61385345458984, 60.87860107421875)
+    },
+    "ecoset-cifar10": {
+        "nearest": (118.97575378417969, 66.42269134521484),
+        "lanczos": (118.9734878540039, 65.4490737915039)
+    }
 }
 
 max_queue_size = 20  # 10
@@ -58,7 +90,7 @@ extension = 'h5'  # For saving model/weights
 
 # image_dir = '/work/data'
 # TODO: Remove all_test_sets
-all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
+# all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
 generalisation_types = ['line_drawings', 'silhouettes', 'contours']
 # generalisation_sets = ['line_drawings', 'silhouettes', 'contours',
 #                        'line_drawings_inverted', 'silhouettes_inverted', 'contours_inverted']
