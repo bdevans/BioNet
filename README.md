@@ -9,6 +9,7 @@ Deep Convolutional Neural Networks with bio-inspired filters.
 Expected directory structure
 ----------------------------
 
+```
 .
 ├── blah.py
 ├── bionet
@@ -28,6 +29,7 @@ Expected directory structure
 ├── scripts
 ├── model.py
 └── README.md
+```
 
 Training and testing the model
 ------------------------------
