@@ -58,10 +58,12 @@ from bionet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_f
                                 adjust_contrast, scramble_phases,
                                 rotate_image, adjust_brightness, 
                                 invert_luminance)
-try:
-    from all_cnn.networks import allcnn, allcnn_imagenet
-except ImportError:
-    print("Please add an implementation of ALL-CNN to your path!")
+from bionet.bases import BioResNet50, allcnn, allcnn_imagenet
+
+# try:
+#     from all_cnn.networks import allcnn, allcnn_imagenet
+# except ImportError:
+#     print("Please add an implementation of ALL-CNN to your path!")
 
 # NOTE: Randomness and reproducibility
 # https://machinelearningmastery.com/reproducible-results-neural-networks-keras/
@@ -181,7 +183,7 @@ if not args:
     parser.print_help()
     parser.exit(1)
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
+# gpus = tf.config.experimental.list_physical_devices('GPU')
 assert 0 <= args["gpu"] < len(gpus)
 tf.config.experimental.set_visible_devices(gpus[args["gpu"]], 'GPU')
 
@@ -666,10 +668,12 @@ def get_all_cnn(include_top=True, weights=None, input_shape=image_shape, classes
 
 model_base = {'vgg16': tf.keras.applications.vgg16.VGG16, 
               'vgg19': tf.keras.applications.vgg19.VGG19,
-              'resnet': tf.keras.applications.resnet_v2.ResNet50V2,
+              'resnet': BioResNet50,
+#               'resnet': tf.keras.applications.resnet_v2.ResNet50V2,
               'mobilenet': tf.keras.applications.mobilenet_v2.MobileNetV2, # MobileNetV2
               'inception': tf.keras.applications.inception_v3.InceptionV3,
               'allcnn': get_all_cnn}
+
 # ResNet50, Inception V3, and Xception
 
 # input_tensor = Input(shape=image_shape, name='input_1', dtype='float16')
@@ -677,21 +681,23 @@ if weights is None:
     output_classes = n_classes
 else:
     output_classes = 1000  # Default
-model = model_base[base.lower().replace('-', '')](include_top=True, 
-                                                  weights=weights, 
-                                                #   input_tensor=input_tensor,
-                                                  input_shape=image_shape,
-                                                  classes=output_classes)
+base_name = base.lower().replace('-', '')
+model = model_base[base_name](include_top=True, 
+                              weights=weights, 
+                            #   input_tensor=input_tensor,
+                              input_shape=image_shape,
+                              classes=output_classes)
 
-# if add_noise:
-#     model = utils.insert_noise_layer(model, layer=None, std=noise)
-model = utils.substitute_layer(model, filter_params,
-                               filter_type=convolution,
-                               replace_layer=None,
-                               input_shape=image_size,
-                               colour_input=colour,
-                               use_initializer=use_initializer,
-                               noise_std=internal_noise)
+if base_name not in ["resnet"]:
+    # if add_noise:
+    #     model = utils.insert_noise_layer(model, layer=None, std=noise)
+    model = utils.substitute_layer(model, filter_params,
+                                   filter_type=convolution,
+                                   replace_layer=None,
+                                   input_shape=image_size,
+                                   colour_input=colour,
+                                   use_initializer=use_initializer,
+                                   noise_std=internal_noise)
 if n_classes != output_classes:  # 1000:
     model = utils.substitute_output(model, n_classes=n_classes)
 
