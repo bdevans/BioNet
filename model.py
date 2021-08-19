@@ -933,7 +933,6 @@ if skip_test:
 
 
 # Test Generalisation Images
-# all_test_sets = ['line_drawings', 'silhouettes', 'contours']  # , 'scharr']
 
 if isinstance(test_generalisation, str):
     if test_generalisation.lower() == 'all':
@@ -1150,25 +1149,17 @@ if (ver_num[0] >= 2) and (ver_num[1] > 2) and True:
     print("Setting default dtype to float16")
     tf.keras.backend.set_floatx('float16')  # Set default dtype to 16 bit
 
+
 # Test perturbation images
 
-# Create testing results files
-
-# test_metrics = {mod: [] for mod in models}
-# if save_predictions:
-#     test_predictions = []
-#     # test_predictions = {mod: [] for mod in models}
-# rows = []
-
-
 # Test on perturbed test images
-test_set = "CIFAR10"
+test_set = data_set
 results_file = os.path.join(sim_results_dir, "metrics", f"{model_name}_perturb_{test_set.lower()}_s{seed}.csv")
 if test_perturbations and (not os.path.isfile(results_file) or clean):
     test_noise_perturbations(model, sim, noise_types, sim_results_dir=sim_results_dir, 
                              test_set=test_set, x_test=x_test, y_test=y_test)
 
-
+    
 # Test on perturbed generalisation images
 for test_set in generalisation_sets:
     test_images_path = os.path.join(data_dir, "CIFAR-10G", f"{image_size[0]}x{image_size[1]}", test_set)
@@ -1178,242 +1169,6 @@ for test_set in generalisation_sets:
     if test_perturbations and (not os.path.isfile(results_file) or clean):
         test_noise_perturbations(model, sim, noise_types, sim_results_dir=sim_results_dir,
                                  test_set=test_set, test_images_path=test_images_path)
-
-
-
-
-
-
-# fieldnames = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
-#               'Noise', 'LI', 'Level', 'Loss', 'Accuracy']
-
-# if load_images_from_disk:
-#     # Preload true labels
-#     test_batches = ImageDataGenerator().flow_from_directory(perturbation_image_path,
-#                                                             batch_size=batch,
-#                                                             shuffle=False,
-#                                                             follow_links=True,
-#                                                            )
-# #     test_batches.class_indices.keys()
-#     outputs = []
-#     for b in range(len(test_batches)):
-#         outputs.append(np.argmax(test_batches[b][1], axis=1))
-#     y_labels = np.squeeze(np.concatenate(outputs))
-# else:
-#     y_labels = np.squeeze(np.argmax(y_test, axis=1))
-
-# results_file = os.path.join(sim_results_dir, "metrics", f"{model_name}_perturb_s{seed}.csv") #f"perturb_{sim_set}.csv") #sim_set = f"{model_name}_s{seed}"
-# with open(results_file, 'w') as results:
-#     writer = csv.DictWriter(results, fieldnames=fieldnames)
-#     writer.writeheader()
-
-# # TODO: Optionally test (and generate through the ImageDataGenerator) unperturbed images (L0)
-# for noise, noise_function, levels in noise_types:
-#     print(f"[{model_name}] Perturbing test images with {noise} noise...")
-#     print("-" * 80)
-
-#     if noise in stochastic_perturbations:
-#         # Set the number of workers to 1 for reproducility as this avoids 
-#         # ordering effects when getting batches with stochastic perturbations
-#         perturbation_workers = 1
-#     else:
-#         perturbation_workers = workers
-
-#     for l_ind, level in enumerate(levels):
-#         print(f"[{l_ind+1:02d}/{len(levels):02d}] level={float(level):6.2f}: ", end='', flush=True)
-
-#         t0 = time.time()
-
-#         rng = np.random.RandomState(seed=seed+l_ind)  # Ensure a new RNG state for each level
-#         prep_image = get_noise_preprocessor(noise, noise_function, level, 
-#                                             contrast_level=contrast_level, 
-#                                             bg_grey=mean/255, rng=rng)
-
-# #         if noise == "Uniform":
-# #             perturbation_fn = functools.partial(noise_function, width=level, 
-# #                                                 contrast_level=contrast_level, rng=rng)
-# #         elif noise == "Salt and Pepper":
-# #             perturbation_fn = functools.partial(noise_function, p=level, 
-# #                                                 contrast_level=contrast_level, rng=rng)
-# #         elif noise == "High Pass" or noise == "Low Pass":
-# #             perturbation_fn = functools.partial(noise_function, std=level, bg_grey=mean/255)
-# #         elif noise == "Contrast":
-# #             perturbation_fn = functools.partial(noise_function, contrast_level=level)    
-# #         elif noise == "Phase Scrambling":
-# #             perturbation_fn = functools.partial(noise_function, width=level)
-# #         elif noise == "Rotation":
-# #             perturbation_fn = functools.partial(noise_function, degrees=level)
-# #         elif noise in ["Darken", "Brighten", "Invert"]:
-# #             perturbation_fn = functools.partial(noise_function, level=level)
-# #         else:
-# #             print(f"Unknown noise type: {noise}!")
-
-# #         prep_image = cifar_wrapper(perturbation_fn)
-
-
-#         # TODO: Check this is still deterministic when parallelised
-#         data_gen = ImageDataGenerator(
-#             preprocessing_function=prep_image,
-#             featurewise_center=featurewise_normalisation, 
-#             featurewise_std_normalization=featurewise_normalisation,
-#             samplewise_center=samplewise_normalisation,
-#             samplewise_std_normalization=samplewise_normalisation,
-#             dtype='float16')
-#         if featurewise_normalisation:
-#             # data_gen.fit(x_train)  # Set mean and std
-#             data_gen.mean = mean
-#             data_gen.std = std
-
-#         if save_images:
-#             perturbation_image_out_dir = os.path.join(image_out_dir, noise.replace(' ', '_').lower())
-#             os.makedirs(perturbation_image_out_dir, exist_ok=True)
-#             image_prefix = f"L{l_ind:02d}"
-#         else:
-#             perturbation_image_out_dir = None
-
-#         if load_images_from_disk:
-#             gen_test = data_gen.flow_from_directory(
-#                 perturbation_image_path,  # os.path.join(image_path, 'test'),
-#                 target_size=image_size,
-#                 color_mode=colour,  # Not needed?
-#                 interpolation=interpolation_name,  # Not needed?
-#                 batch_size=batch,
-#                 shuffle=False,
-#                 seed=seed,
-#                 save_to_dir=perturbation_image_out_dir,
-#                 save_prefix=image_prefix,
-#                 follow_links=True,
-# #                 subset=None,
-# #             classes=classes,
-# #             class_mode='categorical',
-#             )
-#         else:
-#             gen_test = data_gen.flow(
-#                 x_test, y=y_test, batch_size=batch,
-#                 shuffle=False, seed=seed,  # True
-#                 save_to_dir=perturbation_image_out_dir, save_prefix=image_prefix)
-
-#         # This new method has a memory leak
-#         metrics = model.evaluate(gen_test, 
-#                                  # steps=gen_test.n//batch,
-#                                  steps=len(gen_test),
-#                                  verbose=0,
-#                                  max_queue_size=max_queue_size,
-#                                  workers=perturbation_workers,
-#                                  use_multiprocessing=use_multiprocessing)
-
-#         t_elapsed = time.time() - t0
-
-#         if train:
-#             metrics_dict = {metric: score for metric, score in zip(model.metrics_names, metrics)}
-#             print(f"{metrics_dict} [{t_elapsed:.3f}s]")
-#         else:
-#             print(f"{metrics} [{t_elapsed:.3f}s]")
-
-
-#         if save_predictions:
-
-#             # NOTE: The results from randomised perturbations do not match 
-#             # those calculated from the predictions because .evaluate and
-#             # .predict appear to use generators differently
-#             # Precise values for Uniform, Salt & Pepper and Phase scrambling
-#             # are unreproducible. This is likely due to using multiple workers
-#             # with the ImageDataGenerator. 
-
-#             # TODO: Alternatively, generate the same mask for each image
-#             rng = np.random.RandomState(seed=seed+l_ind)
-#             prep_image = get_noise_preprocessor(noise, noise_function, level,
-#                                                 contrast_level=contrast_level,
-#                                                 bg_grey=mean/255, rng=rng)
-
-#             data_gen = ImageDataGenerator(
-#                 preprocessing_function=prep_image,
-#                 featurewise_center=featurewise_normalisation, 
-#                 featurewise_std_normalization=featurewise_normalisation,
-#                 samplewise_center=samplewise_normalisation,
-#                 samplewise_std_normalization=samplewise_normalisation,
-#                 dtype='float16')
-#             if featurewise_normalisation:
-#                 data_gen.mean = mean
-#                 data_gen.std = std
-
-#             if load_images_from_disk:
-#                 gen_test = data_gen.flow_from_directory(
-#                     perturbation_image_path,  # os.path.join(image_path, 'test'),
-#                     target_size=image_size,
-#                     color_mode=colour,  # Not needed?
-#                     interpolation=interpolation_name,  # Not needed?
-#                     batch_size=batch,
-#                     shuffle=False,
-#                     seed=seed,
-#                     save_to_dir=None,
-#                     follow_links=True,
-#                 )
-#             else:
-#                 gen_test = data_gen.flow(x_test, y=y_test, batch_size=batch,
-#                                          shuffle=False, seed=seed, save_to_dir=None)
-
-#             predictions = model.predict(gen_test, 
-#                                         steps=len(gen_test),
-#                                         verbose=0,
-#                                         max_queue_size=max_queue_size,
-#                                         workers=perturbation_workers,
-#                                         use_multiprocessing=use_multiprocessing)
-
-#             predictions_file = os.path.join(sim_results_dir, 'predictions', 
-#                                             f'{model_name}_perturb_{noise.replace(" ", "_").lower()}_L{l_ind:02d}_s{seed}.csv')
-
-# #             np.savetxt(predictions_file, predictions, delimiter=',', 
-# #                        header=','.join([f'p(class={c})' for c in classes]))
-
-#             classifications = np.argmax(predictions, axis=1)
-
-#             # Check accuracy based on probabilities matches accuracy from .evaluate
-#             assert len(classifications) == len(y_labels)
-#             accuracy = sum(classifications == y_labels) / len(y_labels)
-# #             cat_acc = categorical_accuracy(y_labels, classifications).numpy()
-# #             assert np.isclose(accuracy, cat_acc), f"Calculated: {accuracy} =/= Library: {cat_acc}"
-#             assert np.isclose(accuracy, metrics[1], atol=1e-6), \
-#     f"{noise} [{l_ind+1:02d}/{len(levels):02d}]: Calculated: {accuracy} =/= Evaluated: {metrics[1]}"
-# #             if not np.isclose(accuracy, metrics[1], atol=1e-6):  # +/- 0.00001 # +/- 0.00005
-# #                 print(f"Calculated: {accuracy} =/= Evaluated: {metrics[1]}")
-
-#             # Put predictions into DataFrame
-#             df_noise = pd.DataFrame(predictions, columns=classes)
-#             df_noise["Predicted"] = classifications
-#             df_noise["Class"] = y_labels
-#             df_noise["Correct"] = classifications == y_labels
-#             df_noise["Image"] = range(len(y_labels))
-#             df_noise["Noise"] = [noise] * len(y_labels)
-#             df_noise["LI"] = [l_ind] * len(y_labels)
-#             df_noise["Level"] = [level] * len(y_labels)
-
-#             df_noise.to_csv(predictions_file, index=False)
-
-#             del predictions
-
-#         if save_predictions:
-#             acc = accuracy  # Manual calculation is more accurate, probably due to rounding errors
-#         else:
-#             acc = metrics[1]
-# #         acc = metrics[1]
-
-#         row = {'Model': mod, 'Convolution': convolution, 'Base': base,
-#                'Weights': str(weights), 'Trial': trial, 'Seed': seed,
-#                'Noise': noise, 'LI': l_ind, 'Level': level,
-#                'Loss': metrics[0], 'Accuracy': acc}
-#         with open(results_file, 'a') as results:
-#             writer = csv.DictWriter(results, fieldnames=fieldnames)
-#             writer.writerow(row)
-#         # rows.append(row)
-
-#         # Clean up after every perturbation level
-#         del prep_image
-#         del gen_test
-#         del data_gen
-#         gc.collect()
-
-#     print("-" * 80)
 
 
 print(f'Models: {model_output_dir}')
