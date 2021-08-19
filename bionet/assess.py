@@ -15,10 +15,6 @@ from bionet.config import (classes,
 from bionet.preparation import stochastic_perturbations, get_noise_preprocessor
 
 
-# perturbation_columns = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
-#                         'Set', 'Noise', 'LI', 'Level', 'Loss', 'Accuracy']
-
-
 def test_noise_perturbations(model, sim, noise_types, sim_results_dir="", test_set="",
                              test_images_path="", x_test=None, y_test=None):
 
@@ -251,6 +247,9 @@ def test_noise_perturbations(model, sim, noise_types, sim_results_dir="", test_s
                 acc = accuracy  # Manual calculation is more accurate, probably due to rounding errors
             else:
                 acc = metrics[1]
+
+            # perturbation_columns = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
+            #                         'Set', 'Noise', 'LI', 'Level', 'Loss', 'Accuracy']
 
             row = {'Model': sim["model"], 'Convolution': sim["convolution"],
                    'Base': sim["base"], 'Weights': str(sim["weights"]),
