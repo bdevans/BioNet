@@ -45,10 +45,9 @@ from bionet.config import (#data_set, classes, n_classes,
                            upscale, image_size, image_shape, train_image_stats,
                            interpolation_names,
 #                            data_dir, models_dir, logs_dir, results_dir,
-                           generalisation_types,
                            max_queue_size, workers, use_multiprocessing,
                            report, extension,
-                           generalisation_sets)
+                           generalisation_types, generalisation_sets, generalisation_columns)
 from bionet import utils, plots
 from bionet.preparation import (#as_perturbation_fn, as_greyscale_perturbation_fn, 
                                 get_perturbations, stochastic_perturbations,
@@ -961,11 +960,9 @@ if test_generalisation:
     else:
         inversions = [False]
 
-    fieldnames = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
-                  'Set', 'Type', 'Inverted', 'Loss', 'Accuracy']
     results_file = os.path.join(sim_results_dir, "metrics", f"{model_name}_generalise_s{seed}.csv")
     with open(results_file, 'w') as results:
-        writer = csv.DictWriter(results, fieldnames=fieldnames)
+        writer = csv.DictWriter(results, fieldnames=generalisation_columns)
         writer.writeheader()
 
 # if test_image_path and os.path.isdir(test_image_path):
@@ -1112,12 +1109,15 @@ for test_set in test_sets:
             acc = accuracy
         else:
             acc = metrics[1]
+        # generalisation_columns = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
+        #                           'Set', 'Type', 'Inverted', 'Loss', 'Accuracy']
+
         row = {'Model': mod, 'Convolution': convolution, 'Base': base,
                'Weights': str(weights), 'Trial': trial, 'Seed': seed,
                'Set': full_set_name, 'Type': test_set, 'Inverted': invert,
                'Loss': metrics[0], 'Accuracy': acc}
         with open(results_file, 'a') as results:
-            writer = csv.DictWriter(results, fieldnames=fieldnames)
+            writer = csv.DictWriter(results, fieldnames=generalisation_columns)
             writer.writerow(row)
 
         t_elapsed = time.time() - t0
