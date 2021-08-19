@@ -7,7 +7,7 @@ import cv2
 
 # Models
 convolutions_order = ("Original", "Low-pass", "DoG", "Gabor", "Combined")
-bases_order = ("ALL-CNN", "VGG-16", "VGG-19")
+bases_order = ("ALL-CNN", "ResNet", "VGG-16", "VGG-19")
 
 # Images
 # data_set = 'CIFAR10'
@@ -100,7 +100,7 @@ generalisation_sets = ['line_drawings', 'line_drawings_inverted',
                        'silhouettes', 'silhouettes_inverted']
 
 # Data format
-perturb_columns = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
-                   'Noise', 'LI', 'Level', 'Loss', 'Accuracy']
+perturbation_columns = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
+                        'Set', 'Noise', 'LI', 'Level', 'Loss', 'Accuracy']
 generalisation_columns = ['Model', 'Convolution', 'Base', 'Weights', 'Trial', 'Seed',
                           'Set', 'Type', 'Inverted', 'Loss', 'Accuracy']
