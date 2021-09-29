@@ -109,7 +109,7 @@ optional arguments:
 
 To train and test the models, the code below may be used and adapted as required.
 
-```
+```python
 import os
 import sys
 import pprint
