@@ -11,7 +11,6 @@ Expected directory structure
 
 ```
 .
-├── blah.py
 ├── bionet
 │   ├── config.py
 │   ├── explain.py
