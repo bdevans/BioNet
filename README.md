@@ -2,9 +2,8 @@
 Deep Convolutional Neural Networks with bio-inspired filters. 
 
 1. Clone this repository
-2. Clone the CIFAR-10G generalisation test set
-3. Optionally clone an ALL-CNN implementation
-4. Set your `project_dir` in the notebook and pass your `data_dir` (`ln -s /shared/data/ data`)
+2. Clone the [CIFAR-10G](https://github.com/bdevans/CIFAR-10G) generalisation test set
+3. Set your `project_dir` in the notebook and pass your `data_dir` (`ln -s /shared/data/ data`)
 
 Expected directory structure
 ----------------------------
