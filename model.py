@@ -254,6 +254,7 @@ if convolution.capitalize() == 'Gabor':
               'sigmas': [8],
               'thetas': np.linspace(0, np.pi, 4, endpoint=False).tolist(),
               'psis': [np.pi/2, 3*np.pi/2]}
+    filter_params = {convolution.capitalize(): params}
     mod = f'Gabor_{base}'
 elif convolution == 'DoG':
     params = {'ksize': (63, 63),
@@ -261,6 +262,7 @@ elif convolution == 'DoG':
 #               'gammas': [2]
               'gammas': [1.6, 1.8, 2, 2.2]
              }
+    filter_params = {convolution.capitalize(): params}
     mod = f'DoG_{base}'
 elif convolution.capitalize() == 'Combined-full':
     params = {
@@ -278,6 +280,7 @@ elif convolution.capitalize() == 'Combined-full':
             'psis': [np.pi/2, 3*np.pi/2]
             },
         }
+    filter_params = params
     mod = f"{'+'.join(list(params))}_{base}"
     # mod = f'DoG+Gabor_{base}'
 elif convolution.capitalize() == 'Combined-small':
@@ -296,6 +299,7 @@ elif convolution.capitalize() == 'Combined-small':
             'psis': [np.pi/2, 3*np.pi/2]
             },
         }
+    filter_params = params
     mod = f"{'+'.join(list(params))}_{base}"
     # mod = f'DoG+Gabor_{base}'
     # mod = f'{convolution}_{base}'
@@ -315,6 +319,7 @@ elif convolution.capitalize() == 'Combined-medium':
             'psis': [np.pi/2, 3*np.pi/2]
             },
         }
+    filter_params = params
     mod = f"{'+'.join(list(params))}_{base}"
 elif convolution.capitalize() == 'Combined-trim':
     params = {
@@ -332,6 +337,7 @@ elif convolution.capitalize() == 'Combined-trim':
             'psis': [np.pi/2, 3*np.pi/2]
             },
         }
+    filter_params = params
     # mod = f"{'+'.join(list(params))}_{base}"
     mod = f"Combined_{base}"
 elif convolution.capitalize() == 'Low-pass':
@@ -340,10 +346,11 @@ elif convolution.capitalize() == 'Low-pass':
               'sigmas': [1, 2, 4, 8]}  # long_k4
 #               'sigmas': [2, 4]} # Low-pass_s_2_4
 #               'sigmas': [4, 8]} # Low-pass_s_4_8
-              
+    filter_params = {convolution.capitalize(): params}
     mod = f'Low-pass_{base}'
 elif convolution.capitalize() == 'Original':
-    params = None
+#     params = None
+    filter_params = params = None
 #     mod = base
     mod = f"Original_{base}"
     if args['pretrain']:
@@ -353,7 +360,7 @@ else:
     warnings.warn(f'Unknown convolution type: {convolution}!')
     sys.exit()
 
-filter_params = params
+# filter_params = params
 
 
 # max_queue_size = 10
@@ -453,12 +460,18 @@ if image_path and os.path.isdir(image_path):
 
         test_image_sets, x_test, y_test = utils.load_images(os.path.join(image_path, 'test'), shuffle=False)
         assert n_classes == len(test_image_sets)
+        test_images_path = ""
+    else:
+        x_test = None
+        y_test = None
+        test_images_path = perturbation_image_path
 
 # if test_image_path and os.path.isdir(test_image_path):
 
 else:  # Default to standard CIFAR10 training and testing images
 
     load_images_from_disk = False
+    test_images_path = ""
     # Set up stimuli
     data_set = "CIFAR10"
     # Imported from config
@@ -686,22 +699,29 @@ if weights is None:
 else:
     output_classes = 1000  # Default
 base_name = base.lower().replace('-', '')
-model = model_base[base_name](include_top=True, 
+
+if base_name not in ["resnet"]:  # List of hard-coded exceptions
+    model = model_base[base_name](include_top=True, 
                               weights=weights, 
                             #   input_tensor=input_tensor,
                               input_shape=image_shape,
                               classes=output_classes)
-
-if base_name not in ["resnet"]:  # List of hard-coded exceptions
     # if add_noise:
     #     model = utils.insert_noise_layer(model, layer=None, std=noise)
-    model = utils.substitute_layer(model, filter_params,
+    model = utils.substitute_layer(model, params,
                                    filter_type=convolution,
                                    replace_layer=None,
                                    input_shape=image_size,
                                    colour_input=colour,
                                    use_initializer=use_initializer,
                                    noise_std=internal_noise)
+else:
+    model = model_base[base_name](include_top=True, 
+                                  weights=weights,
+                                  kernels=filter_params,
+                                  # input_tensor=input_tensor,
+                                  input_shape=image_shape,
+                                  classes=output_classes)
 if n_classes != output_classes:  # 1000:
     model = utils.substitute_output(model, n_classes=n_classes)
 
@@ -1157,7 +1177,7 @@ test_set = data_set
 results_file = os.path.join(sim_results_dir, "metrics", f"{model_name}_perturb_{test_set.lower()}_s{seed}.csv")
 if test_perturbations and (not os.path.isfile(results_file) or clean):
     test_noise_perturbations(model, sim, noise_types, sim_results_dir=sim_results_dir, 
-                             test_set=test_set, x_test=x_test, y_test=y_test)
+                             test_set=test_set, test_images_path=test_images_path, x_test=x_test, y_test=y_test)
 
     
 # Test on perturbed generalisation images
