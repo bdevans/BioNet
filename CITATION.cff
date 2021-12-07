@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the accompanying article."
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Evans"
+    given-names: "Benjamin D."
+    orcid: "https://orcid.org/0000-0002-1734-6070"
+  - family-names: "Malhotra"
+    given-names: "Gaurav"
+  - family-names: "Bowers"
+    given-names: "Jeffrey S."
+  doi: "10.1101/2021.02.18.431827"
+  journal: "bioRxiv"
+  month: 2
+  start: 1
+  end: 34
+  title: "Biological convolutions improve DNN robustness to noise and generalisation"
+  volume: 1
+  year: 2021
