@@ -964,15 +964,24 @@ class KernelInitializer(Initializer):
         return self.params
 
 
-def load_model(data_set, name, verbose=0):
+def load_model(data_set, name, project_root_dir=None, verbose=0):
     # TODO: Check shape and dtype work
     # TODO: Restore optimizer state (and ReduceLR)
-    path_to_model = f"/work/models/{data_set}/{name}"
-    stub = "100_epochs"
+#     if "project_root_dir" in globals():  # Set in globals
+#         project_root_dir = globals()["project_root_dir"]
+    if project_root_dir:
+        models_dir = os.path.join(project_root_dir, "models")
+    else:
+        models_dir = "~/work/BioNet/models"
+#     path_to_model = f"/work/models/{data_set}/{name}"
+    path_to_model = os.path.join(models_dir, data_set, name)
 
     if verbose:
         print(f"Loading model: {path_to_model}", flush=True)
-    sim = get_simulation_params(data_set, name)
+    sim = get_simulation_params(data_set, name, models_dir)
+    
+    stub = f"{sim['epochs']}_epochs"
+    
     # Retrofit new variable names
     if 'convolution' in sim:
         convolution = sim['convolution']
@@ -1004,7 +1013,7 @@ def load_model(data_set, name, verbose=0):
         print("Parameters: ")
         pprint(filter_params)
         
-    with open(f"{path_to_model}/{stub}.json", "r") as sf:
+    with open(os.path.join(path_to_model, f"{stub}.json"), "r") as sf:
         config = sf.read()
     if verbose > 1:
         print("Model config: ")
@@ -1013,7 +1022,7 @@ def load_model(data_set, name, verbose=0):
         pprint(custom_objects)
     # with CustomObjectScope(custom_objects):
     model = tf.keras.models.model_from_json(config, custom_objects)
-    model.load_weights(f"{path_to_model}/{stub}_weights.h5")
+    model.load_weights(os.path.join(path_to_model, f"{stub}_weights.h5"))
     if verbose:
         model.summary()
 
