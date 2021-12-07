@@ -1,10 +1,9 @@
 # BioNet
 Deep Convolutional Neural Networks with bio-inspired filters. 
 
-1. Clone this repository
-2. Clone the CIFAR-10G generalisation test set
-3. Optionally clone an ALL-CNN implementation
-4. Set your `project_dir` in the notebook and pass your `data_dir` (`ln -s /shared/data/ data`)
+1. Clone this [BioNet repository](https://github.com/bdevans/BioNet)
+2. Clone the [CIFAR-10G](https://github.com/bdevans/CIFAR-10G) generalisation test set
+3. Set your `project_dir` in the notebook and pass your `data_dir` (`ln -s /shared/data/ data`) which contains the image sets
 
 Expected directory structure
 ----------------------------
@@ -34,7 +33,7 @@ Expected directory structure
 Training and testing the model
 ------------------------------
 
-The main script to handle training and testing is `model.py` in the project's root directory. 
+The main script to handle training and testing is `model.py` in the project's root directory. This script is called to both train and test the models. If saved weights files are found in the `models` directory, training will be skipped (unless the `clean` flag is passed) and the code will proceed to testing. 
 
 ### Arguments and usage
 
@@ -107,3 +106,12 @@ optional arguments:
   -v VERBOSE, --verbose VERBOSE
                         Verbosity level
 ```
+
+Notes
+-----
+
+`rsync -vzhrLKe ssh --progress user@host:/storage/models/paper /shared/data/`
+
+Create symlinks to consolidate simulations
+
+`find response -maxdepth 1 -mindepth 1 -type d -exec ln -s ../'{}' paper/ \;`
