@@ -10,11 +10,11 @@ preferred-citation:
     given-names: "Gaurav"
   - family-names: "Bowers"
     given-names: "Jeffrey S."
-  doi: "10.1101/2021.02.18.431827"
-  journal: "bioRxiv"
+  doi: "10.1016/j.neunet.2021.12.005"
+  journal: "Neural Networks"
   month: 2
-  start: 1
-  end: 34
+  start: 96
+  end: 110
   title: "Biological convolutions improve DNN robustness to noise and generalisation"
-  volume: 1
-  year: 2021
+  volume: 148
+  year: 2022
